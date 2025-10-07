@@ -5,7 +5,7 @@ questions about the consent form and discuss the INA visit.
 2.Client receives the invitation email to fill out the consent form, which has a clickable
 Client-Specific temporary PIN/ID number.
 
-3.This takes them through the Multi-factor authentication.
+3.This takes them through the 2FA (factor authentication).
 
 4.The Client is directed to a limited access portal page to review the consent form. They
 can download the form if they wish and sign it, but must upload the form back to the
