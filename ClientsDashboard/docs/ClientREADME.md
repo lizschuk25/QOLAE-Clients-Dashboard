@@ -389,3 +389,21 @@ Built with ❤️ by Liz for QOLAE
 ---
 
 **Last Updated**: 28th October 2025
+
+### **📋 STEP 1D: CLIENTS WORKFLOW**✅
+**Status**: Lower priority, simpler workflow
+
+#### **1D.1 - Client Registration** ⏳ ✅
+- [ ] **Basic info collection**
+- [ ] **Generate client PIN**
+
+#### **1D.2 - Client Consent Form** ⏳ ✅
+- [ ] **Digital signature**
+- [ ] **Consent tracking**
+
+#### **1D.3 - Client Portal Access** ⏳ ✅
+- [ ] **View case status**
+- [ ] **View documents**
+- [ ] **Minimal access (read-only)**
+
+---
