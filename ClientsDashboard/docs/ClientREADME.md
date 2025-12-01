@@ -4,7 +4,7 @@
 
 ## 📋 Overview
 
-The QOLAE Portal is a secure, GDPR-compliant platform for managing Independent Neuropsychological Assessment (INA) workflows. All critical documents are secured on blockchain infrastructure for immutability and audit trail purposes.
+The QOLAE Portal is a secure, GDPR-compliant platform for managing Immediate Needs Assessments (INA) workflows. All critical documents are secured on blockchain infrastructure for immutability and audit trail purposes.
 
 ### Key Features
 
@@ -68,44 +68,18 @@ The QOLAE Portal is a secure, GDPR-compliant platform for managing Independent N
 ### Setup Steps
 
 1. **Clone the repository**
-```bash
-git clone https://github.com/your-org/qolae-portal.git
-cd qolae-portal
-```
-
 2. **Install dependencies**
-```bash
-npm install
-```
-
 3. **Configure environment variables**
-```bash
-cp .env.example .env
-# Edit .env with your actual configuration
-```
-
 4. **Set up database**
-```bash
-# Run migrations (create your own based on your DB)
-npm run migrate
-```
-
 5. **Generate secrets**
 ```bash
 # Generate strong random strings for SESSION_SECRET and COOKIE_SECRET
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
-
 6. **Start the server**
-```bash
-# Development
-npm run dev
-
 # Production
-npm start
-```
 
-The server will start at `http://localhost:3000`
+The server will start at `http://localhost:3010` (clients.qolae.com) and websocket:3011(SSOT access)
 
 ## 🔧 Configuration
 
@@ -123,7 +97,7 @@ See `.env.example` for all available configuration options.
 
 ### Blockchain Integration
 
-The system supports multiple blockchain platforms:
+The system supports blockchain compliance that may implement the following:
 
 - **Ethereum/EVM-compatible chains**
 - **Hyperledger Fabric**
@@ -147,8 +121,8 @@ fastify.decorate('blockchain', {
 ### Authentication
 
 Clients access the portal via:
-1. **Email invitation** with unique PIN/ID
-2. **Multi-factor authentication** (can be enabled)
+1. **Email invitation** with unique PIN ID
+2. **2-factor authentication** (can be enabled)
 3. **Session management** with secure cookies
 
 ### Data Protection
@@ -198,46 +172,7 @@ qolae-portal/
 ```
 
 ## 🚀 Deployment
-
-### Docker Deployment
-
-```dockerfile
-# Dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 3000
-CMD ["node", "app.js"]
-```
-
-Build and run:
-```bash
-docker build -t qolae-portal .
-docker run -p 3000:3000 --env-file .env qolae-portal
-```
-
-### Cloud Deployment
-
-**AWS:**
-- Deploy to Elastic Beanstalk or ECS
-- Use RDS for database
-- Use S3 for document storage
-- Use SES for email
-
-**Azure:**
-- Deploy to App Service
-- Use Azure Database
-- Use Blob Storage for documents
-- Use SendGrid for email
-
-**Heroku:**
-```bash
-heroku create qolae-portal
-heroku addons:create heroku-postgresql:hobby-dev
-git push heroku main
-```
+Customised Live Server on Hertzner
 
 ## 🔗 API Endpoints
 
@@ -264,30 +199,12 @@ git push heroku main
 
 ## 🧪 Testing
 
-```bash
-# Run all tests
-npm test
-
-# Run specific test file
-npm test test/routes/client-dashboard.test.js
-
-# Watch mode for development
-npm test -- --watch
-```
 
 ## 📊 Monitoring
 
 ### Logging
 
 Logs are output via Fastify's built-in logger (Pino):
-
-```bash
-# View logs in development
-npm run dev
-
-# Production logs (JSON format)
-npm start | pino-pretty
-```
 
 ### Health Checks
 
@@ -302,33 +219,6 @@ Response:
   "timestamp": "2025-10-28T10:30:00.000Z",
   "blockchain": "connected"
 }
-```
-
-## 📝 Development
-
-### Code Style
-
-This project uses:
-- **ESLint** for code linting
-- **Prettier** for code formatting
-
-```bash
-npm run lint
-npm run format
-```
-
-### Git Workflow
-
-```bash
-# Create feature branch
-git checkout -b feature/new-feature
-
-# Make changes and commit
-git add .
-git commit -m "feat: add new feature"
-
-# Push and create PR
-git push origin feature/new-feature
 ```
 
 ## 🛠️ Troubleshooting
@@ -362,13 +252,13 @@ PROPRIETARY - All rights reserved by QOLAE
 ## 👥 Support
 
 For support and questions:
-- **Email**: liz@qolae.com
-- **Documentation**: [docs.qolae.com](https://docs.qolae.com)
+- **Email**: admin@qolae.com
+- **Documentation**: [admin@qolae.com](https://hrcompliance.qolae.com)
 
 ## 🎯 Roadmap
 
-- [ ] Case Manager Dashboard
-- [ ] Mobile app (React Native)
+- [ ] CaseManagers Dashboard
+- [ ] Lawyers Dashboard
 - [ ] Multi-language support
 - [ ] Advanced analytics
 - [ ] Webhooks for integrations
@@ -388,7 +278,7 @@ Built with ❤️ by Liz for QOLAE
 
 ---
 
-**Last Updated**: 28th October 2025
+**Last Updated**: 25th November 2025
 
 ### **📋 STEP 1D: CLIENTS WORKFLOW**✅
 **Status**: Lower priority, simpler workflow

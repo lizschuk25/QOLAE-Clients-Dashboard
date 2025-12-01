@@ -58,7 +58,7 @@ await server.register(fastifyCors, {
 await server.register(fastifyJwt, {
   secret: process.env.JWT_SECRET || 'clients-secret-key-2025',
   cookie: {
-    cookieName: 'qolae_client_token',
+    cookieName: 'qolaeClientToken',
     signed: false,
   },
 });

@@ -43,9 +43,9 @@ export default async function authRoutes(fastify, options) {
 
       // Check if client exists with this PIN and email in qolae_lawyers database
       const clientResult = await lawyersDb.query(
-        `SELECT client_pin, name, email, status
+        `SELECT "clientPin", name, email, status
          FROM clients
-         WHERE client_pin = $1 AND email = $2`,
+         WHERE "clientPin" = $1 AND email = $2`,
         [pin, email]
       );
 
@@ -67,19 +67,19 @@ export default async function authRoutes(fastify, options) {
       // Save verification code to database
       await lawyersDb.query(
         `UPDATE clients
-         SET email_verification_code = $1,
-             email_verification_code_expires_at = $2,
-             email_verification_code_attempts = 0,
-             last_login_attempt = NOW()
-         WHERE client_pin = $3`,
+         SET "emailVerificationCode" = $1,
+             "emailVerificationCodeExpiresAt" = $2,
+             "emailVerificationCodeAttempts" = 0,
+             "lastLoginAttempt" = NOW()
+         WHERE "clientPin" = $3`,
         [verificationCode, expiresAt, pin]
       );
 
       // Log activity
       await lawyersDb.query(
-        `INSERT INTO client_activity_log (client_pin, activity_type, activity_description, performed_by, ip_address, created_at)
+        `INSERT INTO "clientActivityLog" ("clientPin", "activityType", "activityDescription", "performedBy", "ipAddress", "createdAt")
          VALUES ($1, $2, $3, $4, $5, NOW())`,
-        [pin, 'email_code_requested', 'Client requested email verification code', client.name, request.ip]
+        [pin, 'emailCodeRequested', 'Client requested email verification code', client.name, request.ip]
       );
 
       // TODO: Send email with verification code via NotificationService
@@ -117,11 +117,11 @@ export default async function authRoutes(fastify, options) {
 
       // Get client with verification code
       const clientResult = await lawyersDb.query(
-        `SELECT client_pin, name, email, email_verification_code,
-                email_verification_code_expires_at, email_verification_code_attempts,
-                status, consent_signed_at
+        `SELECT "clientPin", name, email, "emailVerificationCode",
+                "emailVerificationCodeExpiresAt", "emailVerificationCodeAttempts",
+                status, "consentSignedAt"
          FROM clients
-         WHERE client_pin = $1 AND email = $2`,
+         WHERE "clientPin" = $1 AND email = $2`,
         [pin, email]
       );
 
@@ -135,7 +135,7 @@ export default async function authRoutes(fastify, options) {
       const client = clientResult.rows[0];
 
       // Check if code has expired
-      if (new Date() > new Date(client.email_verification_code_expires_at)) {
+      if (new Date() > new Date(client.emailVerificationCodeExpiresAt)) {
         return reply.code(401).send({
           success: false,
           error: 'Verification code has expired. Please request a new one.'
@@ -143,7 +143,7 @@ export default async function authRoutes(fastify, options) {
       }
 
       // Check attempts (max 3)
-      if (client.email_verification_code_attempts >= 3) {
+      if (client.emailVerificationCodeAttempts >= 3) {
         return reply.code(403).send({
           success: false,
           error: 'Too many failed attempts. Please request a new verification code.'
@@ -151,51 +151,51 @@ export default async function authRoutes(fastify, options) {
       }
 
       // Verify code
-      if (client.email_verification_code !== code) {
+      if (client.emailVerificationCode !== code) {
         // Increment failed attempts
         await lawyersDb.query(
           `UPDATE clients
-           SET email_verification_code_attempts = email_verification_code_attempts + 1
-           WHERE client_pin = $1`,
+           SET "emailVerificationCodeAttempts" = "emailVerificationCodeAttempts" + 1
+           WHERE "clientPin" = $1`,
           [pin]
         );
 
         return reply.code(401).send({
           success: false,
           error: 'Invalid verification code',
-          attemptsRemaining: 2 - client.email_verification_code_attempts
+          attemptsRemaining: 2 - client.emailVerificationCodeAttempts
         });
       }
 
       // Code is valid - clear verification code and generate JWT
       await lawyersDb.query(
         `UPDATE clients
-         SET email_verification_code = NULL,
-             email_verification_code_expires_at = NULL,
-             email_verification_code_attempts = 0,
-             last_login = NOW(),
-             total_logins = COALESCE(total_logins, 0) + 1
-         WHERE client_pin = $1`,
+         SET "emailVerificationCode" = NULL,
+             "emailVerificationCodeExpiresAt" = NULL,
+             "emailVerificationCodeAttempts" = 0,
+             "lastLogin" = NOW(),
+             "totalLogins" = COALESCE("totalLogins", 0) + 1
+         WHERE "clientPin" = $1`,
         [pin]
       );
 
       // Log successful login
       await lawyersDb.query(
-        `INSERT INTO client_activity_log (client_pin, activity_type, activity_description, performed_by, ip_address, created_at)
+        `INSERT INTO "clientActivityLog" ("clientPin", "activityType", "activityDescription", "performedBy", "ipAddress", "createdAt")
          VALUES ($1, $2, $3, $4, $5, NOW())`,
-        [pin, 'successful_login', `Client logged in successfully`, client.name, request.ip]
+        [pin, 'successfulLogin', `Client logged in successfully`, client.name, request.ip]
       );
 
       // Generate JWT token
       const token = fastify.jwt.sign({
-        pin: client.client_pin,
+        pin: client.clientPin,
         name: client.name,
         email: client.email,
         role: 'client'
       });
 
       // Set secure cookie
-      reply.setCookie('qolae_client_token', token, {
+      reply.setCookie('qolaeClientToken', token, {
         path: '/',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -208,11 +208,11 @@ export default async function authRoutes(fastify, options) {
         message: 'Login successful',
         redirectTo: '/clients-dashboard',
         client: {
-          pin: client.client_pin,
+          pin: client.clientPin,
           name: client.name,
           email: client.email,
           status: client.status,
-          consentSignedAt: client.consent_signed_at
+          consentSignedAt: client.consentSignedAt
         }
       });
 
@@ -231,7 +231,7 @@ export default async function authRoutes(fastify, options) {
   fastify.post('/api/clients/logout', async (request, reply) => {
     try {
       // Clear cookie
-      reply.clearCookie('qolae_client_token', {
+      reply.clearCookie('qolaeClientToken', {
         path: '/',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

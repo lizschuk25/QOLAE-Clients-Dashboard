@@ -4,16 +4,16 @@
 // Purpose: Consent signing, appointments, documents, and report access
 // Author: Liz
 // Date: October 28, 2025
-// Database: qolae_hrcompliance (clients table)
-// ==============================================
+// Database: qolae_lawyers (clients table)Reviewed this on 25th November 2025
+//         ==============================================
 
 import pg from 'pg';
 
 const { Pool } = pg;
 
-// Database connection (HR Compliance database)
+// Database connection (Lawyers database)
 const hrcDb = new Pool({
-  connectionString: process.env.HRCOMPLIANCE_DATABASE_URL
+  connectionString: process.env.LAWYERS_DATABASE_URL
 });
 
 // ==============================================
@@ -48,13 +48,13 @@ export default async function clientRoutes(fastify, options) {
     try {
       // Get client data
       const clientResult = await hrcDb.query(
-        `SELECT client_pin, client_name, email, phone,
-                consent_signed, consent_signed_at,
-                ina_appointment_scheduled, ina_appointment_date,
-                document_access_enabled, final_report_available,
-                workflow_status, created_at
+        `SELECT "clientPin", "clientName", email, phone,
+                "consentSigned", "consentSignedAt",
+                "inaAppointmentScheduled", "inaAppointmentDate",
+                "documentAccessEnabled", "finalReportAvailable",
+                "workflowStatus", "createdAt"
          FROM clients
-         WHERE client_pin = $1`,
+         WHERE "clientPin" = $1`,
         [pin]
       );
 
@@ -66,10 +66,10 @@ export default async function clientRoutes(fastify, options) {
 
       // Get notifications (last 10)
       const notificationsResult = await hrcDb.query(
-        `SELECT id, title, message, read, created_at
-         FROM client_notifications
-         WHERE client_pin = $1
-         ORDER BY created_at DESC
+        `SELECT id, title, message, read, "createdAt"
+         FROM "clientNotifications"
+         WHERE "clientPin" = $1
+         ORDER BY "createdAt" DESC
          LIMIT 10`,
         [pin]
       );
@@ -86,23 +86,23 @@ export default async function clientRoutes(fastify, options) {
         },
         {
           label: 'Consent Form',
-          status: client.consent_signed ? 'completed' : 'active',
-          statusLabel: client.consent_signed ? 'Completed' : 'Action Required'
+          status: client.consentSigned ? 'completed' : 'active',
+          statusLabel: client.consentSigned ? 'Completed' : 'Action Required'
         },
         {
           label: 'INA Appointment',
-          status: client.ina_appointment_scheduled ? 'completed' : (client.consent_signed ? 'pending' : 'pending'),
-          statusLabel: client.ina_appointment_scheduled ? 'Scheduled' : 'Ready to Schedule'
+          status: client.inaAppointmentScheduled ? 'completed' : (client.consentSigned ? 'pending' : 'pending'),
+          statusLabel: client.inaAppointmentScheduled ? 'Scheduled' : 'Ready to Schedule'
         },
         {
           label: 'Document Access',
-          status: client.document_access_enabled ? 'active' : 'pending',
-          statusLabel: client.document_access_enabled ? 'Now Available' : 'Requires Consent'
+          status: client.documentAccessEnabled ? 'active' : 'pending',
+          statusLabel: client.documentAccessEnabled ? 'Now Available' : 'Requires Consent'
         },
         {
           label: 'Final Report',
-          status: client.final_report_available ? 'completed' : 'pending',
-          statusLabel: client.final_report_available ? 'Pending Assessment' : 'Pending Assessment'
+          status: client.finalReportAvailable ? 'completed' : 'pending',
+          statusLabel: client.finalReportAvailable ? 'Pending Assessment' : 'Pending Assessment'
         }
       ];
 
@@ -113,32 +113,32 @@ export default async function clientRoutes(fastify, options) {
       // Card states
       const cards = {
         consentForm: {
-          signed: client.consent_signed,
-          status: client.consent_signed ? 'completed' : 'pending',
-          statusLabel: client.consent_signed ? 'Completed' : 'Action Required'
+          signed: client.consentSigned,
+          status: client.consentSigned ? 'completed' : 'pending',
+          statusLabel: client.consentSigned ? 'Completed' : 'Action Required'
         },
         inaAppointment: {
-          scheduled: client.ina_appointment_scheduled,
-          canSchedule: client.consent_signed,
-          status: client.ina_appointment_scheduled ? 'completed' : (client.consent_signed ? 'active' : 'pending'),
-          statusLabel: client.ina_appointment_scheduled ? 'Ready to Schedule' : 'Pending Consent'
+          scheduled: client.inaAppointmentScheduled,
+          canSchedule: client.consentSigned,
+          status: client.inaAppointmentScheduled ? 'completed' : (client.consentSigned ? 'active' : 'pending'),
+          statusLabel: client.inaAppointmentScheduled ? 'Ready to Schedule' : 'Pending Consent'
         },
         documentAccess: {
-          enabled: client.document_access_enabled,
-          status: client.document_access_enabled ? 'active' : 'pending',
-          statusLabel: client.document_access_enabled ? 'Now Available' : 'Requires Consent'
+          enabled: client.documentAccessEnabled,
+          status: client.documentAccessEnabled ? 'active' : 'pending',
+          statusLabel: client.documentAccessEnabled ? 'Now Available' : 'Requires Consent'
         },
         finalReport: {
-          available: client.final_report_available,
-          status: client.final_report_available ? 'completed' : 'pending',
-          statusLabel: client.final_report_available ? 'Pending Assessment' : 'Pending Assessment'
+          available: client.finalReportAvailable,
+          status: client.finalReportAvailable ? 'completed' : 'pending',
+          statusLabel: client.finalReportAvailable ? 'Pending Assessment' : 'Pending Assessment'
         }
       };
 
       // Session data
       const session = {
         lastLogin: new Date().toLocaleString('en-GB'),
-        isFirstLogin: !client.last_login
+        isFirstLogin: !client.lastLogin
       };
 
       // CSRF token
@@ -146,14 +146,14 @@ export default async function clientRoutes(fastify, options) {
 
       return reply.view('clients-dashboard.ejs', {
         client: {
-          id: client.client_pin,
-          name: client.client_name,
-          firstName: client.client_name.split(' ')[0],
+          id: client.clientPin,
+          name: client.clientName,
+          firstName: client.clientName.split(' ')[0],
           email: client.email
         },
         workflow: {
           steps: workflowSteps,
-          currentStepLabel: client.workflow_status || 'in progress'
+          currentStepLabel: client.workflowStatus || 'in progress'
         },
         progressPercentage,
         cards,
@@ -163,7 +163,7 @@ export default async function clientRoutes(fastify, options) {
             title: n.title,
             message: n.message,
             read: n.read,
-            timeAgo: getTimeAgo(n.created_at)
+            timeAgo: getTimeAgo(n.createdAt)
           })),
           unreadCount
         },
@@ -201,20 +201,20 @@ export default async function clientRoutes(fastify, options) {
       // Save signature and update client
       await hrcDb.query(
         `UPDATE clients
-         SET consent_signed = TRUE,
-             consent_signed_at = NOW(),
-             consent_signature_data = $1,
-             document_access_enabled = TRUE,
-             workflow_status = 'consent_completed'
-         WHERE client_pin = $2`,
+         SET "consentSigned" = TRUE,
+             "consentSignedAt" = NOW(),
+             "consentSignatureData" = $1,
+             "documentAccessEnabled" = TRUE,
+             "workflowStatus" = 'consentCompleted'
+         WHERE "clientPin" = $2`,
         [signatureBuffer, pin]
       );
 
       // Log activity
       await hrcDb.query(
-        `INSERT INTO client_activity_log (client_pin, activity_type, activity_description, created_at)
+        `INSERT INTO "clientActivityLog" ("clientPin", "activityType", "activityDescription", "createdAt")
          VALUES ($1, $2, $3, NOW())`,
-        [pin, 'consent_signed', 'Client signed consent form digitally']
+        [pin, 'consentSigned', 'Client signed consent form digitally']
       );
 
       // TODO: Trigger blockchain hash generation for consent form
@@ -245,9 +245,9 @@ export default async function clientRoutes(fastify, options) {
 
     try {
       await hrcDb.query(
-        `UPDATE client_notifications
-         SET read = TRUE, read_at = NOW()
-         WHERE id = $1 AND client_pin = $2`,
+        `UPDATE "clientNotifications"
+         SET read = TRUE, "readAt" = NOW()
+         WHERE id = $1 AND "clientPin" = $2`,
         [id, pin]
       );
 
