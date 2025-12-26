@@ -15,7 +15,6 @@
 import Fastify from 'fastify';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fastifyStatic from '@fastify/static';
 import fastifyView from '@fastify/view';
 import ejs from 'ejs';
 import fastifyFormbody from '@fastify/formbody';
@@ -71,13 +70,7 @@ await server.register(fastifyCookie);
 // 4. Form Body Parser
 await server.register(fastifyFormbody);
 
-// 5. Static Files
-await server.register(fastifyStatic, {
-    root: path.join(__dirname, 'public'),
-    prefix: '/public/',
-});
-
-// 6. View Engine (EJS)
+// 5. View Engine (EJS)
 await server.register(fastifyView, {
     engine: {
         ejs: ejs,

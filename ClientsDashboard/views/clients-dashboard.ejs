@@ -1157,6 +1157,8 @@
                         element.classList.remove('unread');
                         updateNotificationBadge();
                     }
+                }).catch(_err => {
+                    console.error('Failed to mark notification as read');
                 });
             }
         }
@@ -1181,6 +1183,9 @@
                 } else if (badge) {
                     badge.remove();
                 }
+            })
+            .catch(_err => {
+                console.error('Failed to update notification badge');
             });
         }
 
@@ -1305,7 +1310,7 @@
                         showToast(data.error || 'Failed to sign consent form', 'warning');
                     }
                 })
-                .catch(err => {
+                .catch(_err => {
                     showToast('Error submitting signature. Please try again.', 'warning');
                 });
             }, 'image/png');
@@ -1339,7 +1344,7 @@
             if (!event.target.closest('.notification-panel') && !event.target.closest('.notification-bell')) {
                 notifPanel.classList.remove('show');
             }
-        }
+        };
 
         // ===== RIPPLE EFFECT =====
         document.querySelectorAll('.btn:not([disabled])').forEach(btn => {
