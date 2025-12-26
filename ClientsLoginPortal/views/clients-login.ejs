@@ -1,0 +1,308 @@
+<!--
+ * QOLAE Clients Login Page
+ * Step 1: PIN + Email Entry
+ * Auto-fills PIN from URL query parameter (e.g., ?pin=WWC-LC-123456)
+ * Organized by Location Block Protocol
+ * Author: Liz
+ * Date: 26th December 2025
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Login - QOLAE Portal</title>
+
+<!-- ========================================== -->
+<!-- LOCATION BLOCK 0: ALL CSS STYLES -->
+<!-- ========================================== -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 450px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #4facfe;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .logo p {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .step-indicator {
+            text-align: center;
+            margin-bottom: 24px;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            color: #374151;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .form-input:read-only {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .form-hint {
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .message.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+
+        .security-notice {
+            margin-top: 24px;
+            padding: 12px;
+            background: #f8f9ff;
+            border-radius: 8px;
+            border-left: 3px solid #4facfe;
+        }
+
+        .security-notice p {
+            color: #6b7280;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ========================================== -->
+<!-- LOCATION BLOCK 1: LOGO & BRANDING -->
+<!-- ========================================== -->
+    <div class="login-container">
+        <div class="logo">
+            <h1>QOLAE</h1>
+            <p>Secure Client Portal</p>
+        </div>
+
+        <div id="messageBox">
+            <% if (typeof error !== 'undefined' && error) { %>
+            <div class="message error"><%= error %></div>
+            <% } %>
+            <% if (typeof message !== 'undefined' && message) { %>
+            <div class="message info"><%= message %></div>
+            <% } %>
+        </div>
+
+<!-- ========================================== -->
+<!-- LOCATION BLOCK 2: LOGIN FORM (PIN & EMAIL) -->
+<!-- ========================================== -->
+        <div class="step-indicator">Step 1 of 2: Enter Your Credentials</div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label class="form-label" for="pin">Client PIN</label>
+                <input type="text" id="pin" name="pin" class="form-input" placeholder="WWC-LC-123456" required>
+                <p class="form-hint">Find this in your invitation email</p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="email">Email Address</label>
+                <input type="email" id="email" name="email" class="form-input" placeholder="your@email.com" required>
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">
+                Request Verification Code
+            </button>
+        </form>
+
+        <div class="security-notice">
+            <p>
+                <svg width="16" height="16" fill="#4facfe" viewBox="0 0 24 24">
+                    <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z"/>
+                </svg>
+                Your session is encrypted and GDPR compliant
+            </p>
+        </div>
+    </div>
+
+<!-- ========================================== -->
+<!-- LOCATION BLOCK 3: JAVASCRIPT -->
+<!-- ========================================== -->
+    <script>
+        const form = document.getElementById('loginForm');
+        const pinInput = document.getElementById('pin');
+        const emailInput = document.getElementById('email');
+        const submitBtn = document.getElementById('submitBtn');
+        const messageBox = document.getElementById('messageBox');
+
+        // Auto-fill PIN from URL query parameter
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const pinFromUrl = urlParams.get('pin');
+            
+            if (pinFromUrl) {
+                pinInput.value = pinFromUrl;
+                pinInput.setAttribute('readonly', 'true');
+                showMessage('Client PIN auto-filled from your invitation email. Please enter your email address.', 'info');
+                emailInput.focus();
+            }
+        });
+
+        function showMessage(message, type) {
+            messageBox.innerHTML = `<div class="message ${type}">${message}</div>`;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const pin = pinInput.value.trim();
+            const email = emailInput.value.trim();
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span>Sending...';
+
+            try {
+                const response = await fetch('/api/clients/request-email-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ pin, email })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                    // Redirect to 2FA page with params
+                    setTimeout(() => {
+                        window.location.href = `/clients-2fa?pin=${encodeURIComponent(pin)}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(data.clientName || '')}`;
+                    }, 1000);
+                } else {
+                    showMessage(data.error, 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Request Verification Code';
+                }
+            } catch (error) {
+                showMessage('Network error. Please try again.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Request Verification Code';
+            }
+        });
+    </script>
+</body>
+</html>

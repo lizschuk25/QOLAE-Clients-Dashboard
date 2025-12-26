@@ -1,0 +1,484 @@
+<!--
+ * QOLAE Clients 2FA Page
+ * Step 2: Email Verification Code Entry
+ * Organized by Location Block Protocol
+ * Author: Liz
+ * Date: 26th December 2025
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Code - QOLAE Portal</title>
+
+<!-- ========================================== -->
+<!-- LOCATION BLOCK 0: ALL CSS STYLES -->
+<!-- ========================================== -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 450px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #4facfe;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .logo p {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .welcome-text {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .welcome-text h2 {
+            color: #2d3748;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .welcome-text p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .step-indicator {
+            text-align: center;
+            margin-bottom: 24px;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            color: #374151;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .code-input-container {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .code-input {
+            width: 50px;
+            height: 60px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .code-input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .email-display {
+            text-align: center;
+            color: #6b7280;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        .email-display span {
+            color: #4facfe;
+            font-weight: 600;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #4facfe;
+            border: none;
+            padding: 12px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 16px;
+            width: 100%;
+        }
+
+        .btn-secondary:hover {
+            color: #667eea;
+        }
+
+        .btn-secondary:disabled {
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .message.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back-link a {
+            color: #6b7280;
+            font-size: 13px;
+            text-decoration: none;
+        }
+
+        .back-link a:hover {
+            color: #4facfe;
+        }
+
+        .timer {
+            text-align: center;
+            color: #6b7280;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        .timer.expired {
+            color: #991b1b;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ========================================== -->
+<!-- LOCATION BLOCK 1: LOGO & BRANDING -->
+<!-- ========================================== -->
+    <div class="login-container">
+        <div class="logo">
+            <h1>QOLAE</h1>
+            <p>Secure Client Portal</p>
+        </div>
+
+        <div class="welcome-text">
+            <h2>Welcome, <%= clientName %></h2>
+            <p>We've sent a verification code to your email</p>
+        </div>
+
+        <div id="messageBox">
+            <% if (typeof error !== 'undefined' && error) { %>
+            <div class="message error"><%= error %></div>
+            <% } %>
+        </div>
+
+<!-- ========================================== -->
+<!-- LOCATION BLOCK 2: 2FA FORM (VERIFICATION CODE) -->
+<!-- ========================================== -->
+        <div class="step-indicator">Step 2 of 2: Enter Verification Code</div>
+        
+        <form id="verifyForm">
+            <input type="hidden" id="pin" value="<%= pin %>">
+            <input type="hidden" id="email" value="<%= email %>">
+
+            <div class="form-group">
+                <label class="form-label">6-Digit Verification Code</label>
+                <div class="code-input-container">
+                    <input type="text" class="code-input" maxlength="1" data-index="0" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code">
+                    <input type="text" class="code-input" maxlength="1" data-index="1" inputmode="numeric" pattern="[0-9]">
+                    <input type="text" class="code-input" maxlength="1" data-index="2" inputmode="numeric" pattern="[0-9]">
+                    <input type="text" class="code-input" maxlength="1" data-index="3" inputmode="numeric" pattern="[0-9]">
+                    <input type="text" class="code-input" maxlength="1" data-index="4" inputmode="numeric" pattern="[0-9]">
+                    <input type="text" class="code-input" maxlength="1" data-index="5" inputmode="numeric" pattern="[0-9]">
+                </div>
+                <p class="email-display">Code sent to <span><%= email %></span></p>
+                <p class="timer" id="timer">Code expires in <span id="countdown">10:00</span></p>
+            </div>
+
+            <button type="submit" class="btn" id="verifyBtn">
+                Verify & Login
+            </button>
+
+            <button type="button" class="btn-secondary" id="resendBtn">
+                Resend Code
+            </button>
+        </form>
+
+        <div class="back-link">
+            <a href="/clients-login">← Back to login</a>
+        </div>
+    </div>
+
+<!-- ========================================== -->
+<!-- LOCATION BLOCK 3: JAVASCRIPT -->
+<!-- ========================================== -->
+    <script>
+        const form = document.getElementById('verifyForm');
+        const pin = document.getElementById('pin').value;
+        const email = document.getElementById('email').value;
+        const verifyBtn = document.getElementById('verifyBtn');
+        const resendBtn = document.getElementById('resendBtn');
+        const messageBox = document.getElementById('messageBox');
+        const codeInputs = document.querySelectorAll('.code-input');
+        const countdownEl = document.getElementById('countdown');
+        const timerEl = document.getElementById('timer');
+
+        // Focus first input on load
+        window.addEventListener('DOMContentLoaded', () => {
+            codeInputs[0].focus();
+        });
+
+        // Handle code input navigation
+        codeInputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                const value = e.target.value;
+                
+                // Only allow numbers
+                if (!/^\d*$/.test(value)) {
+                    e.target.value = '';
+                    return;
+                }
+
+                // Move to next input
+                if (value && index < codeInputs.length - 1) {
+                    codeInputs[index + 1].focus();
+                }
+
+                // Auto-submit when all filled
+                if (index === codeInputs.length - 1 && value) {
+                    const code = getCode();
+                    if (code.length === 6) {
+                        form.dispatchEvent(new Event('submit'));
+                    }
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                // Handle backspace
+                if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                    codeInputs[index - 1].focus();
+                }
+            });
+
+            // Handle paste
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const pastedData = e.clipboardData.getData('text').trim();
+                
+                if (/^\d{6}$/.test(pastedData)) {
+                    pastedData.split('').forEach((char, i) => {
+                        if (codeInputs[i]) {
+                            codeInputs[i].value = char;
+                        }
+                    });
+                    codeInputs[5].focus();
+                    // Auto-submit
+                    setTimeout(() => form.dispatchEvent(new Event('submit')), 100);
+                }
+            });
+        });
+
+        function getCode() {
+            return Array.from(codeInputs).map(input => input.value).join('');
+        }
+
+        function showMessage(message, type) {
+            messageBox.innerHTML = `<div class="message ${type}">${message}</div>`;
+        }
+
+        // Countdown timer (10 minutes)
+        let timeLeft = 600;
+        const timerInterval = setInterval(() => {
+            timeLeft--;
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerEl.classList.add('expired');
+                timerEl.innerHTML = 'Code expired. Please <a href="#" id="resendLink">request a new code</a>.';
+                document.getElementById('resendLink')?.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    resendBtn.click();
+                });
+            }
+        }, 1000);
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const code = getCode();
+
+            if (code.length !== 6) {
+                showMessage('Please enter all 6 digits', 'error');
+                return;
+            }
+
+            verifyBtn.disabled = true;
+            verifyBtn.innerHTML = '<span class="spinner"></span>Verifying...';
+
+            try {
+                const response = await fetch('/api/clients/verify-email-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ pin, email, code })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('Login successful! Redirecting...', 'success');
+                    clearInterval(timerInterval);
+                    setTimeout(() => {
+                        window.location.href = data.redirectTo;
+                    }, 1000);
+                } else {
+                    showMessage(data.error, 'error');
+                    verifyBtn.disabled = false;
+                    verifyBtn.innerHTML = 'Verify & Login';
+                    // Clear inputs
+                    codeInputs.forEach(input => input.value = '');
+                    codeInputs[0].focus();
+                }
+            } catch (error) {
+                showMessage('Network error. Please try again.', 'error');
+                verifyBtn.disabled = false;
+                verifyBtn.innerHTML = 'Verify & Login';
+            }
+        });
+
+        // Resend code
+        resendBtn.addEventListener('click', async () => {
+            resendBtn.disabled = true;
+            resendBtn.textContent = 'Sending...';
+
+            try {
+                const response = await fetch('/api/clients/request-email-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ pin, email })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('New code sent!', 'success');
+                    // Reset timer
+                    timeLeft = 600;
+                    timerEl.classList.remove('expired');
+                    // Clear inputs
+                    codeInputs.forEach(input => input.value = '');
+                    codeInputs[0].focus();
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Network error. Please try again.', 'error');
+            } finally {
+                resendBtn.disabled = false;
+                resendBtn.textContent = 'Resend Code';
+            }
+        });
+    </script>
+</body>
+</html>
