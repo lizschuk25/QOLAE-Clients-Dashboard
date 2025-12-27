@@ -62,7 +62,7 @@ export async function verifyClientSession(request, reply) {
         });
 
         // Redirect to login
-        return reply.redirect('/clients-login?error=Session expired. Please login again.');
+        return reply.redirect('/clientsLogin?error=Session expired. Please login again.');
     }
 }
 
@@ -85,7 +85,7 @@ export async function verifyClientAPI(request, reply) {
         return reply.code(401).send({
             success: false,
             error: 'Authentication required',
-            redirectTo: '/clients-login'
+            redirectTo: '/clientsLogin'
         });
     }
 }

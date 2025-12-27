@@ -112,7 +112,7 @@ server.decorate('authenticateClient', async function(request, reply) {
         }
     } catch (error) {
         // Redirect to LoginPortal
-        const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clients-login';
+        const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clientsLogin';
         return reply.redirect(`${loginUrl}?error=Session expired. Please login again.`);
     }
 });
@@ -131,10 +131,10 @@ server.get('/', async (request, reply) => {
     // Check if authenticated
     try {
         await request.jwtVerify();
-        return reply.redirect('/clients-dashboard');
+        return reply.redirect('/clientsDashboard');
     } catch (error) {
         // Not authenticated, redirect to LoginPortal
-        const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clients-login';
+        const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clientsLogin';
         return reply.redirect(loginUrl);
     }
 });
@@ -162,7 +162,7 @@ server.setErrorHandler((error, request, reply) => {
 
     // Check if it's an auth error
     if (error.statusCode === 401) {
-        const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clients-login';
+        const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clientsLogin';
         return reply.redirect(`${loginUrl}?error=Please login to continue.`);
     }
 
@@ -195,7 +195,7 @@ const start = async () => {
         console.log(`📡 WebSocket: Port 3011 (qolae-wsclients)`);
         console.log('');
         console.log('Available Routes:');
-        console.log('  🏠 Dashboard:     /clients-dashboard');
+        console.log('  🏠 Dashboard:     /clientsDashboard');
         console.log('  📝 Consent:       /consent/*');
         console.log('  📅 Appointments:  /appointment/*');
         console.log('  📁 Documents:     /documents/*');

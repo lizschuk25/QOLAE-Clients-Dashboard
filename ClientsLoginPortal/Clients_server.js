@@ -1,12 +1,13 @@
 // ==============================================
 // QOLAE CLIENTS LOGIN PORTAL SERVER
 // ==============================================
-// Purpose: 2FA authentication for clients (PIN + Email verification)
+// Purpose: 2FA + Password authentication for clients
 // Author: Liz
-// Date: 26th December 2025
+// Date: 27th December 2025
 // Port: 3014
 // PM2 Process: qolae-clients-login
-// Database: qolae_lawyers (consentForms table)
+// Database: qolae_clients (clients table)
+// Architecture: Mirrors LawyersLoginPortal pattern
 // ==============================================
 
 // ==============================================
@@ -22,6 +23,10 @@ import fastifyCors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import fastifyCookie from '@fastify/cookie';
 import dotenv from 'dotenv';
+import pg from 'pg';
+import axios from 'axios';
+
+const { Pool } = pg;
 
 // Load environment variables
 dotenv.config();
@@ -92,7 +97,7 @@ await server.register(import('./routes/clientsAuthRoute.js'));
 // LOCATION BLOCK E: ROOT ROUTE
 // ==============================================
 server.get('/', async (request, reply) => {
-    return reply.redirect('/clients-login');
+    return reply.redirect('/clientsLogin');
 });
 
 // ==============================================
@@ -143,8 +148,8 @@ const start = async () => {
         console.log(`🗄️  Database: qolae_lawyers (consentForms table)`);
         console.log('');
         console.log('Available Routes:');
-        console.log('  🔑 Login:     /clients-login');
-        console.log('  📧 2FA:       /clients-2fa');
+        console.log('  🔑 Login:     /clientsLogin');
+        console.log('  📧 2FA:       /clients2fa');
         console.log('  ✅ Verify:    /api/clients/verify-email-code');
         console.log('  🚪 Logout:    /api/clients/logout');
         console.log('  ❤️  Health:    /health');

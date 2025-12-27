@@ -23,23 +23,23 @@ export default async function clientsAuthRoute(fastify, options) {
     // ==============================================
     fastify.get('/login', async (request, reply) => {
         const pin = request.query.pin || '';
-        return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin));
+        return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin));
     });
 
     // ==============================================
     // LOCATION BLOCK 1: LOGIN PAGE (STEP 1 - PIN & EMAIL)
     // ==============================================
-    fastify.get('/clients-login', async (request, reply) => {
+    fastify.get('/clientsLogin', async (request, reply) => {
         // Check if already authenticated
         try {
             await request.jwtVerify();
             // Already logged in, redirect to dashboard
-            return reply.redirect(process.env.DASHBOARD_URL || 'https://clients.qolae.com/clients-dashboard');
+            return reply.redirect(process.env.DASHBOARD_URL || 'https://clients.qolae.com/clientsDashboard');
         } catch (err) {
             // Not logged in, show login page
         }
 
-        return reply.view('clients-login.ejs', {
+        return reply.view('clientsLogin.ejs', {
             pin: request.query.pin || '',
             error: request.query.error || null,
             message: request.query.message || null
@@ -57,7 +57,7 @@ export default async function clientsAuthRoute(fastify, options) {
 
         // Validate input
         if (!pin || !email) {
-            return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin || '') + '&error=' + encodeURIComponent('Client PIN and email are required'));
+            return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin || '') + '&error=' + encodeURIComponent('Client PIN and email are required'));
         }
 
         try {
@@ -71,7 +71,7 @@ export default async function clientsAuthRoute(fastify, options) {
             const apiData = await apiResponse.json();
 
             if (!apiData.success) {
-                return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent(apiData.error || 'Login failed'));
+                return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent(apiData.error || 'Login failed'));
             }
 
             // Send verification code via email service
@@ -90,35 +90,35 @@ export default async function clientsAuthRoute(fastify, options) {
 
                 if (!emailResult.success) {
                     console.error('[ClientsAuth] Failed to send verification email:', emailResult.error);
-                    return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent('Failed to send verification email. Please try again.'));
+                    return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent('Failed to send verification email. Please try again.'));
                 }
 
             } catch (emailError) {
                 console.error('[ClientsAuth] Email service error:', emailError.message);
-                return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent('Email service unavailable. Please try again later.'));
+                return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent('Email service unavailable. Please try again later.'));
             }
 
             // SERVER-SIDE REDIRECT to 2FA page
             const clientFirstName = apiData.clientName.split(' ')[0];
-            return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&codeSent=true');
+            return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&codeSent=true');
 
         } catch (error) {
             console.error('[ClientsAuth] Error in login:', error.message);
-            return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
+            return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
         }
     });
 
     // ==============================================
     // LOCATION BLOCK 3: 2FA PAGE (STEP 2 - VERIFICATION CODE)
     // ==============================================
-    fastify.get('/clients-2fa', async (request, reply) => {
+    fastify.get('/clients2fa', async (request, reply) => {
         const { pin, email, name, codeSent, error } = request.query;
 
         if (!pin || !email) {
-            return reply.redirect('/clients-login?error=Please start from the login page');
+            return reply.redirect('/clientsLogin?error=Please start from the login page');
         }
 
-        return reply.view('clients-2fa.ejs', {
+        return reply.view('clients2fa.ejs', {
             pin: pin,
             email: email,
             clientName: name || 'Client',
@@ -138,7 +138,7 @@ export default async function clientsAuthRoute(fastify, options) {
 
         // Validate input
         if (!pin || !email || !verificationCode) {
-            return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('Verification code is required'));
+            return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('Verification code is required'));
         }
 
         try {
@@ -154,7 +154,7 @@ export default async function clientsAuthRoute(fastify, options) {
             if (!apiData.success) {
                 // Get client name for redirect
                 const clientFirstName = apiData.client?.name?.split(' ')[0] || 'Client';
-                return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent(apiData.error || 'Verification failed'));
+                return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent(apiData.error || 'Verification failed'));
             }
 
             // Generate JWT token
@@ -176,12 +176,12 @@ export default async function clientsAuthRoute(fastify, options) {
             });
 
             // SERVER-SIDE REDIRECT to dashboard
-            const dashboardUrl = process.env.DASHBOARD_URL || 'https://clients.qolae.com/clients-dashboard';
+            const dashboardUrl = process.env.DASHBOARD_URL || 'https://clients.qolae.com/clientsDashboard';
             return reply.redirect(dashboardUrl);
 
         } catch (error) {
             console.error('[ClientsAuth] Error verifying code:', error.message);
-            return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
+            return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
         }
     });
 
@@ -195,7 +195,7 @@ export default async function clientsAuthRoute(fastify, options) {
         const clientIP = request.ip;
 
         if (!pin || !email) {
-            return reply.redirect('/clients-login?error=Session expired. Please start again.');
+            return reply.redirect('/clientsLogin?error=Session expired. Please start again.');
         }
 
         try {
@@ -209,7 +209,7 @@ export default async function clientsAuthRoute(fastify, options) {
             const apiData = await apiResponse.json();
 
             if (!apiData.success) {
-                return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&error=' + encodeURIComponent(apiData.error || 'Failed to resend code'));
+                return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&error=' + encodeURIComponent(apiData.error || 'Failed to resend code'));
             }
 
             // Send verification code via email service
@@ -228,22 +228,22 @@ export default async function clientsAuthRoute(fastify, options) {
 
                 if (!emailResult.success) {
                     const clientFirstName = apiData.clientName.split(' ')[0];
-                    return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent('Failed to send new code. Please try again.'));
+                    return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent('Failed to send new code. Please try again.'));
                 }
 
             } catch (emailError) {
                 console.error('[ClientsAuth] Email service error:', emailError.message);
                 const clientFirstName = apiData.clientName.split(' ')[0];
-                return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent('Email service unavailable.'));
+                return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent('Email service unavailable.'));
             }
 
             // SERVER-SIDE REDIRECT back to 2FA with success message
             const clientFirstName = apiData.clientName.split(' ')[0];
-            return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&codeSent=true');
+            return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&codeSent=true');
 
         } catch (error) {
             console.error('[ClientsAuth] Error resending code:', error.message);
-            return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
+            return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
         }
     });
 
@@ -287,11 +287,11 @@ export default async function clientsAuthRoute(fastify, options) {
                 domain: process.env.COOKIE_DOMAIN || '.qolae.com'
             });
 
-            return reply.redirect('/clients-login?message=You have been logged out successfully.');
+            return reply.redirect('/clientsLogin?message=You have been logged out successfully.');
 
         } catch (error) {
             console.error('[ClientsAuth] Error logging out:', error.message);
-            return reply.redirect('/clients-login');
+            return reply.redirect('/clientsLogin');
         }
     });
 

@@ -40,7 +40,7 @@ async function authenticateClient(request, reply) {
             throw new Error('Invalid role');
         }
     } catch (error) {
-        const loginUrl = process.env.LOGIN_URL || '/clients-login';
+        const loginUrl = process.env.LOGIN_URL || '/clientsLogin';
         return reply.redirect(loginUrl + '?error=Session expired. Please login again.');
     }
 }
@@ -57,7 +57,7 @@ async function authenticateClientAPI(request, reply) {
         return reply.code(401).send({
             success: false,
             error: 'Authentication required',
-            redirectTo: '/clients-login'
+            redirectTo: '/clientsLogin'
         });
     }
 }
@@ -71,7 +71,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
     // LOCATION BLOCK 1: CLIENTS DASHBOARD - MAIN VIEW
     // Calls SSOT API for data
     // ==============================================
-    fastify.get('/clients-dashboard', {
+    fastify.get('/clientsDashboard', {
         preHandler: authenticateClient
     }, async (request, reply) => {
         const { pin, name, email } = request.user;
@@ -168,7 +168,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             // CSRF token for forms
             const csrfToken = fastify.jwt.sign({ csrf: true, pin });
 
-            return reply.view('clients-dashboard.ejs', {
+            return reply.view('clientsDashboard.ejs', {
                 client: {
                     id: client.clientPin,
                     name: client.clientName,
@@ -496,7 +496,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             domain: process.env.COOKIE_DOMAIN || '.qolae.com'
         });
 
-        const loginUrl = process.env.LOGIN_URL || '/clients-login';
+        const loginUrl = process.env.LOGIN_URL || '/clientsLogin';
         return reply.redirect(loginUrl + '?message=You have been logged out successfully.');
     });
 
