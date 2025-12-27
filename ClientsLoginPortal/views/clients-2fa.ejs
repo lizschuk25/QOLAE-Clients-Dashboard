@@ -1,21 +1,39 @@
-<!--
- * QOLAE Clients 2FA Page
- * Step 2: Email Verification Code Entry
- * Organized by Location Block Protocol
- * Author: Liz
- * Date: 26th December 2025
--->
+<!-- ==============================================
+     clients-2fa.ejs - Clients 2FA Verification Page
+     QOLAE Clients Portal - Step 2: Email Verification Code Entry
+     Author: Liz
+     Date: 27th December 2025
+     ✅ BLOCKCHAIN COMPLIANT: Server-side form POST, no fetch()
+     ============================================== -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- ==============================================
+         LOCATION BLOCK A: META & CONFIGURATION
+         ============================================== -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Code - QOLAE Portal</title>
 
-<!-- ========================================== -->
-<!-- LOCATION BLOCK 0: ALL CSS STYLES -->
-<!-- ========================================== -->
+    <!-- ==============================================
+         LOCATION BLOCK B: STYLES
+         B.1: Reset & Base Styles
+         B.2: QOLAE Logo
+         B.3: Layout Container
+         B.4: 2FA Card
+         B.5: Code Input Boxes
+         B.6: Buttons
+         B.7: Messages
+         B.8: Timer
+         B.9: Responsive Design
+         ============================================== -->
+
     <style>
+        /* ============================================== */
+        /* B.1: RESET & BASE STYLES */
+        /* ============================================== */
+
         * {
             margin: 0;
             padding: 0;
@@ -23,39 +41,71 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #ffffff;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 40px 20px;
+            margin: 0;
         }
 
-        .login-container {
+        /* ============================================== */
+        /* B.2: QOLAE LOGO */
+        /* ============================================== */
+
+        .qolae-logo {
+            margin-bottom: 60px;
+            text-align: center;
+            background: none;
+            border: none;
+            box-shadow: none;
+        }
+
+        .qolae-logo img {
+            max-width: 1200px;
+            width: 110%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* ============================================== */
+        /* B.3: LAYOUT CONTAINER */
+        /* ============================================== */
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        /* ============================================== */
+        /* B.4: 2FA CARD - BASKERVILLE FONT */
+        /* ============================================== */
+
+        .twofa-card {
             background: white;
             border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 450px;
-            width: 100%;
             padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            border: 1px solid #e9ecef;
+            font-family: 'Baskerville', 'Helvetica Neue', serif;
         }
 
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .logo h1 {
+        .twofa-title {
             color: #4facfe;
-            font-size: 28px;
-            font-weight: 700;
-        }
-
-        .logo p {
-            color: #6b7280;
-            font-size: 14px;
-            margin-top: 8px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 10px;
+            font-family: 'Baskerville', 'Helvetica Neue', serif;
         }
 
         .welcome-text {
@@ -78,10 +128,14 @@
         .step-indicator {
             text-align: center;
             margin-bottom: 24px;
-            color: #6b7280;
+            color: #4facfe;
             font-size: 14px;
             font-weight: 600;
         }
+
+        /* ============================================== */
+        /* B.5: CODE INPUT BOXES */
+        /* ============================================== */
 
         .form-group {
             margin-bottom: 24px;
@@ -91,14 +145,16 @@
             display: block;
             color: #374151;
             font-weight: 600;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             font-size: 14px;
+            text-align: center;
         }
 
         .code-input-container {
             display: flex;
             gap: 8px;
             justify-content: center;
+            margin-bottom: 16px;
         }
 
         .code-input {
@@ -107,15 +163,23 @@
             text-align: center;
             font-size: 24px;
             font-weight: 600;
-            border: 2px solid #e5e7eb;
+            border: 2px solid #4facfe;
             border-radius: 8px;
             transition: all 0.3s;
+            font-family: Arial, sans-serif;
         }
 
         .code-input:focus {
             outline: none;
-            border-color: #4facfe;
-            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+            border-color: #00c9d8;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
+        }
+
+        /* Hidden input for full code submission */
+        .hidden-code-input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
         }
 
         .email-display {
@@ -130,9 +194,13 @@
             font-weight: 600;
         }
 
-        .btn {
+        /* ============================================== */
+        /* B.6: BUTTONS - TURQUOISE */
+        /* ============================================== */
+
+        .verify-btn {
             width: 100%;
-            padding: 14px;
+            padding: 14px 20px;
             background: linear-gradient(135deg, #4facfe, #00f2fe);
             color: white;
             border: none;
@@ -140,22 +208,25 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            font-family: Arial, sans-serif;
         }
 
-        .btn:hover {
+        .verify-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
         }
 
-        .btn:disabled {
+        .verify-btn:disabled {
             background: #9ca3af;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
 
-        .btn-secondary {
+        .resend-btn {
+            display: block;
+            width: 100%;
             background: transparent;
             color: #4facfe;
             border: none;
@@ -164,42 +235,73 @@
             cursor: pointer;
             text-decoration: underline;
             margin-top: 16px;
-            width: 100%;
+            text-align: center;
         }
 
-        .btn-secondary:hover {
-            color: #667eea;
+        .resend-btn:hover {
+            color: #00c9d8;
         }
 
-        .btn-secondary:disabled {
-            color: #9ca3af;
-            cursor: not-allowed;
-        }
+        /* ============================================== */
+        /* B.7: MESSAGES */
+        /* ============================================== */
 
-        .message {
-            padding: 12px 16px;
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px;
             border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
+            text-align: center;
         }
 
-        .message.success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #6ee7b7;
+        .success-message {
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+            color: #16a34a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            text-align: center;
         }
 
-        .message.error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fca5a5;
+        .info-message {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            color: #0369a1;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            text-align: center;
         }
 
-        .message.info {
-            background: #dbeafe;
-            color: #1e40af;
-            border: 1px solid #93c5fd;
+        /* ============================================== */
+        /* B.8: TIMER */
+        /* ============================================== */
+
+        .timer {
+            text-align: center;
+            color: #6b7280;
+            font-size: 13px;
+            margin-top: 12px;
         }
+
+        .timer.expired {
+            color: #dc2626;
+        }
+
+        .timer .countdown {
+            font-weight: 600;
+            color: #4facfe;
+        }
+
+        /* ============================================== */
+        /* B.9: BACK LINK & SECURITY */
+        /* ============================================== */
 
         .back-link {
             text-align: center;
@@ -216,16 +318,25 @@
             color: #4facfe;
         }
 
-        .timer {
-            text-align: center;
-            color: #6b7280;
-            font-size: 13px;
-            margin-top: 12px;
+        .security-notice {
+            margin-top: 24px;
+            padding: 12px;
+            background: #f8f9ff;
+            border-radius: 8px;
+            border-left: 3px solid #4facfe;
         }
 
-        .timer.expired {
-            color: #991b1b;
+        .security-notice p {
+            color: #6b7280;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+
+        /* ============================================== */
+        /* B.10: SPINNER ANIMATION */
+        /* ============================================== */
 
         .spinner {
             display: inline-block;
@@ -241,108 +352,166 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* ============================================== */
+        /* B.11: RESPONSIVE DESIGN */
+        /* ============================================== */
+
+        @media (max-width: 768px) {
+            .qolae-logo img {
+                max-width: 300px;
+            }
+
+            .twofa-card {
+                padding: 30px 25px;
+            }
+
+            .code-input {
+                width: 42px;
+                height: 52px;
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
+
 <body>
+    <!-- ==============================================
+         LOCATION BLOCK C: HTML STRUCTURE
+         C.1: QOLAE Logo
+         C.2: Main Container
+         C.3: 2FA Card
+         C.4: Server-Side Messages
+         C.5: Verification Form (Server-side POST)
+         C.6: Resend Form (Server-side POST)
+         C.7: Back Link
+         ============================================== -->
 
-<!-- ========================================== -->
-<!-- LOCATION BLOCK 1: LOGO & BRANDING -->
-<!-- ========================================== -->
-    <div class="login-container">
-        <div class="logo">
-            <h1>QOLAE</h1>
-            <p>Secure Client Portal</p>
-        </div>
+    <!-- C.1: QOLAE Logo at Top -->
+    <div class="qolae-logo">
+        <img src="/central-repository/public/images/qolaeNewLogo.png"
+             alt="QOLAE Logo"
+             onerror="this.style.display='none'">
+    </div>
 
-        <div class="welcome-text">
-            <h2>Welcome, <%= clientName %></h2>
-            <p>We've sent a verification code to your email</p>
-        </div>
+    <!-- C.2: Main Container -->
+    <div class="main-container">
+        <!-- C.3: 2FA Card -->
+        <div class="twofa-card">
+            <h2 class="twofa-title">Email Verification</h2>
 
-        <div id="messageBox">
-            <% if (typeof error !== 'undefined' && error) { %>
-            <div class="message error"><%= error %></div>
-            <% } %>
-        </div>
-
-<!-- ========================================== -->
-<!-- LOCATION BLOCK 2: 2FA FORM (VERIFICATION CODE) -->
-<!-- ========================================== -->
-        <div class="step-indicator">Step 2 of 2: Enter Verification Code</div>
-        
-        <form id="verifyForm">
-            <input type="hidden" id="pin" value="<%= pin %>">
-            <input type="hidden" id="email" value="<%= email %>">
-
-            <div class="form-group">
-                <label class="form-label">6-Digit Verification Code</label>
-                <div class="code-input-container">
-                    <input type="text" class="code-input" maxlength="1" data-index="0" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code">
-                    <input type="text" class="code-input" maxlength="1" data-index="1" inputmode="numeric" pattern="[0-9]">
-                    <input type="text" class="code-input" maxlength="1" data-index="2" inputmode="numeric" pattern="[0-9]">
-                    <input type="text" class="code-input" maxlength="1" data-index="3" inputmode="numeric" pattern="[0-9]">
-                    <input type="text" class="code-input" maxlength="1" data-index="4" inputmode="numeric" pattern="[0-9]">
-                    <input type="text" class="code-input" maxlength="1" data-index="5" inputmode="numeric" pattern="[0-9]">
-                </div>
-                <p class="email-display">Code sent to <span><%= email %></span></p>
-                <p class="timer" id="timer">Code expires in <span id="countdown">10:00</span></p>
+            <div class="welcome-text">
+                <h2>Welcome, <%= clientName %></h2>
+                <p>We've sent a verification code to your email</p>
             </div>
 
-            <button type="submit" class="btn" id="verifyBtn">
-                Verify & Login
-            </button>
+            <!-- C.4: Server-Side Messages -->
+            <% if (typeof error !== 'undefined' && error) { %>
+                <div class="error-message"><%= error %></div>
+            <% } %>
 
-            <button type="button" class="btn-secondary" id="resendBtn">
-                Resend Code
-            </button>
-        </form>
+            <% if (typeof codeSent !== 'undefined' && codeSent) { %>
+                <div class="success-message">Verification code sent to your email!</div>
+            <% } %>
 
-        <div class="back-link">
-            <a href="/clients-login">← Back to login</a>
+            <div class="step-indicator">Step 2 of 2: Enter Verification Code</div>
+
+            <!-- C.5: ✅ SERVER-SIDE FORM: No fetch(), posts directly to backend -->
+            <form id="verifyForm" method="POST" action="/clients-auth/verify-code">
+                <!-- Hidden fields for PIN and email -->
+                <input type="hidden" name="pin" value="<%= pin %>">
+                <input type="hidden" name="email" value="<%= email %>">
+                <!-- Hidden field for combined verification code -->
+                <input type="hidden" name="verificationCode" id="verificationCodeHidden" value="">
+
+                <div class="form-group">
+                    <label class="form-label">6-Digit Verification Code</label>
+                    <div class="code-input-container">
+                        <input type="text" class="code-input" maxlength="1" data-index="0" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code">
+                        <input type="text" class="code-input" maxlength="1" data-index="1" inputmode="numeric" pattern="[0-9]">
+                        <input type="text" class="code-input" maxlength="1" data-index="2" inputmode="numeric" pattern="[0-9]">
+                        <input type="text" class="code-input" maxlength="1" data-index="3" inputmode="numeric" pattern="[0-9]">
+                        <input type="text" class="code-input" maxlength="1" data-index="4" inputmode="numeric" pattern="[0-9]">
+                        <input type="text" class="code-input" maxlength="1" data-index="5" inputmode="numeric" pattern="[0-9]">
+                    </div>
+                    <p class="email-display">Code sent to <span><%= email %></span></p>
+                    <p class="timer" id="timer">Code expires in <span class="countdown" id="countdown">10:00</span></p>
+                </div>
+
+                <button type="submit" class="verify-btn" id="verifyBtn">Verify & Login</button>
+            </form>
+
+            <!-- C.6: ✅ SERVER-SIDE RESEND FORM: No fetch() -->
+            <form id="resendForm" method="POST" action="/clients-auth/resend-code">
+                <input type="hidden" name="pin" value="<%= pin %>">
+                <input type="hidden" name="email" value="<%= email %>">
+                <button type="submit" class="resend-btn" id="resendBtn">Resend Code</button>
+            </form>
+
+            <!-- C.7: Back Link -->
+            <div class="back-link">
+                <a href="/clients-login?pin=<%= pin %>">← Back to login</a>
+            </div>
+
+            <!-- Security Notice -->
+            <div class="security-notice">
+                <p>
+                    <svg width="16" height="16" fill="#4facfe" viewBox="0 0 24 24">
+                        <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z"/>
+                    </svg>
+                    Your session is encrypted and GDPR compliant
+                </p>
+            </div>
         </div>
     </div>
 
-<!-- ========================================== -->
-<!-- LOCATION BLOCK 3: JAVASCRIPT -->
-<!-- ========================================== -->
+    <!-- ==============================================
+         LOCATION BLOCK D: JAVASCRIPT (UI ONLY)
+         ✅ BLOCKCHAIN COMPLIANT: No fetch() calls
+         D.1: Code Input Navigation (UI Enhancement)
+         D.2: Form Submit Handler (combines code)
+         D.3: Countdown Timer (UI only)
+         D.4: Form Loading States
+         ============================================== -->
+
     <script>
-        const form = document.getElementById('verifyForm');
-        const pin = document.getElementById('pin').value;
-        const email = document.getElementById('email').value;
-        const verifyBtn = document.getElementById('verifyBtn');
-        const resendBtn = document.getElementById('resendBtn');
-        const messageBox = document.getElementById('messageBox');
+        // ==============================================
+        // D.1: CODE INPUT NAVIGATION
+        // Handles digit-by-digit entry and auto-advance
+        // ==============================================
+
         const codeInputs = document.querySelectorAll('.code-input');
-        const countdownEl = document.getElementById('countdown');
-        const timerEl = document.getElementById('timer');
+        const verificationCodeHidden = document.getElementById('verificationCodeHidden');
 
         // Focus first input on load
         window.addEventListener('DOMContentLoaded', () => {
             codeInputs[0].focus();
         });
 
+        // Update hidden field with combined code
+        function updateHiddenCode() {
+            const code = Array.from(codeInputs).map(input => input.value).join('');
+            verificationCodeHidden.value = code;
+            return code;
+        }
+
         // Handle code input navigation
         codeInputs.forEach((input, index) => {
             input.addEventListener('input', (e) => {
                 const value = e.target.value;
-                
+
                 // Only allow numbers
                 if (!/^\d*$/.test(value)) {
                     e.target.value = '';
                     return;
                 }
 
+                // Update hidden code field
+                updateHiddenCode();
+
                 // Move to next input
                 if (value && index < codeInputs.length - 1) {
                     codeInputs[index + 1].focus();
-                }
-
-                // Auto-submit when all filled
-                if (index === codeInputs.length - 1 && value) {
-                    const code = getCode();
-                    if (code.length === 6) {
-                        form.dispatchEvent(new Event('submit'));
-                    }
                 }
             });
 
@@ -357,7 +526,7 @@
             input.addEventListener('paste', (e) => {
                 e.preventDefault();
                 const pastedData = e.clipboardData.getData('text').trim();
-                
+
                 if (/^\d{6}$/.test(pastedData)) {
                     pastedData.split('').forEach((char, i) => {
                         if (codeInputs[i]) {
@@ -365,119 +534,64 @@
                         }
                     });
                     codeInputs[5].focus();
-                    // Auto-submit
-                    setTimeout(() => form.dispatchEvent(new Event('submit')), 100);
+                    updateHiddenCode();
                 }
             });
         });
 
-        function getCode() {
-            return Array.from(codeInputs).map(input => input.value).join('');
-        }
+        // ==============================================
+        // D.2: FORM SUBMIT HANDLER
+        // Validates code and updates hidden field before POST
+        // ✅ No fetch() - form posts directly to server
+        // ==============================================
 
-        function showMessage(message, type) {
-            messageBox.innerHTML = `<div class="message ${type}">${message}</div>`;
-        }
+        document.getElementById('verifyForm').addEventListener('submit', function(e) {
+            const code = updateHiddenCode();
 
-        // Countdown timer (10 minutes)
-        let timeLeft = 600;
+            if (code.length !== 6) {
+                e.preventDefault();
+                alert('Please enter all 6 digits');
+                codeInputs[0].focus();
+                return;
+            }
+
+            // Show loading state (form will POST to server)
+            const verifyBtn = document.getElementById('verifyBtn');
+            verifyBtn.disabled = true;
+            verifyBtn.innerHTML = '<span class="spinner"></span>Verifying...';
+        });
+
+        // ==============================================
+        // D.3: COUNTDOWN TIMER (UI ONLY)
+        // Just visual countdown - expiry enforced server-side
+        // ==============================================
+
+        let timeLeft = 600; // 10 minutes
+        const countdownEl = document.getElementById('countdown');
+        const timerEl = document.getElementById('timer');
+
         const timerInterval = setInterval(() => {
             timeLeft--;
             const minutes = Math.floor(timeLeft / 60);
             const seconds = timeLeft % 60;
             countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            
+
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
                 timerEl.classList.add('expired');
-                timerEl.innerHTML = 'Code expired. Please <a href="#" id="resendLink">request a new code</a>.';
-                document.getElementById('resendLink')?.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    resendBtn.click();
-                });
+                timerEl.innerHTML = 'Code expired. Please click "Resend Code" below.';
             }
         }, 1000);
 
-        // Form submission
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const code = getCode();
+        // ==============================================
+        // D.4: RESEND FORM LOADING STATE
+        // ✅ No fetch() - form posts directly to server
+        // ==============================================
 
-            if (code.length !== 6) {
-                showMessage('Please enter all 6 digits', 'error');
-                return;
-            }
-
-            verifyBtn.disabled = true;
-            verifyBtn.innerHTML = '<span class="spinner"></span>Verifying...';
-
-            try {
-                const response = await fetch('/api/clients/verify-email-code', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ pin, email, code })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showMessage('Login successful! Redirecting...', 'success');
-                    clearInterval(timerInterval);
-                    setTimeout(() => {
-                        window.location.href = data.redirectTo;
-                    }, 1000);
-                } else {
-                    showMessage(data.error, 'error');
-                    verifyBtn.disabled = false;
-                    verifyBtn.innerHTML = 'Verify & Login';
-                    // Clear inputs
-                    codeInputs.forEach(input => input.value = '');
-                    codeInputs[0].focus();
-                }
-            } catch (error) {
-                showMessage('Network error. Please try again.', 'error');
-                verifyBtn.disabled = false;
-                verifyBtn.innerHTML = 'Verify & Login';
-            }
-        });
-
-        // Resend code
-        resendBtn.addEventListener('click', async () => {
+        document.getElementById('resendForm').addEventListener('submit', function(e) {
+            const resendBtn = document.getElementById('resendBtn');
             resendBtn.disabled = true;
             resendBtn.textContent = 'Sending...';
-
-            try {
-                const response = await fetch('/api/clients/request-email-code', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ pin, email })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showMessage('New code sent!', 'success');
-                    // Reset timer
-                    timeLeft = 600;
-                    timerEl.classList.remove('expired');
-                    // Clear inputs
-                    codeInputs.forEach(input => input.value = '');
-                    codeInputs[0].focus();
-                } else {
-                    showMessage(data.error, 'error');
-                }
-            } catch (error) {
-                showMessage('Network error. Please try again.', 'error');
-            } finally {
-                resendBtn.disabled = false;
-                resendBtn.textContent = 'Resend Code';
-            }
         });
     </script>
 </body>

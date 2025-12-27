@@ -3,29 +3,28 @@
 // ==============================================
 // Purpose: 2FA authentication for clients (PIN + Email verification)
 // Author: Liz
-// Date: 26th December 2025
-// Database: qolae_lawyers (consentForms table)
+// Date: 27th December 2025
+// Architecture: SSOT - Calls api.qolae.com for DB operations
+// BLOCKCHAIN COMPLIANT: Server-side form POST, no client-side fetch()
 // ==============================================
 
 // ==============================================
-// LOCATION BLOCK A: IMPORTS & CONFIGURATION
+// LOCATION BLOCK A: CONFIGURATION
 // ==============================================
-import pg from 'pg';
-import crypto from 'crypto';
-
-const { Pool } = pg;
+const API_URL = process.env.API_URL || 'https://api.qolae.com';
 
 // ==============================================
-// LOCATION BLOCK B: DATABASE CONNECTION
-// ==============================================
-const lawyersDb = new Pool({
-    connectionString: process.env.LAWYERS_DATABASE_URL
-});
-
-// ==============================================
-// LOCATION BLOCK C: ROUTES EXPORT
+// LOCATION BLOCK B: ROUTES EXPORT
 // ==============================================
 export default async function clientsAuthRoute(fastify, options) {
+
+    // ==============================================
+    // LOCATION BLOCK 0: BACKWARDS COMPATIBILITY REDIRECT
+    // ==============================================
+    fastify.get('/login', async (request, reply) => {
+        const pin = request.query.pin || '';
+        return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin));
+    });
 
     // ==============================================
     // LOCATION BLOCK 1: LOGIN PAGE (STEP 1 - PIN & EMAIL)
@@ -41,83 +40,71 @@ export default async function clientsAuthRoute(fastify, options) {
         }
 
         return reply.view('clients-login.ejs', {
+            pin: request.query.pin || '',
             error: request.query.error || null,
             message: request.query.message || null
         });
     });
 
     // ==============================================
-    // LOCATION BLOCK 2: REQUEST EMAIL VERIFICATION CODE
+    // LOCATION BLOCK 2: SERVER-SIDE LOGIN (FORM POST)
+    // BLOCKCHAIN COMPLIANT: No fetch(), server-side redirect
+    // SSOT COMPLIANT: Calls API for DB operations
     // ==============================================
-    fastify.post('/api/clients/request-email-code', async (request, reply) => {
+    fastify.post('/clients-auth/login', async (request, reply) => {
         const { pin, email } = request.body;
+        const clientIP = request.ip;
+
+        // Validate input
+        if (!pin || !email) {
+            return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin || '') + '&error=' + encodeURIComponent('Client PIN and email are required'));
+        }
 
         try {
-            // Validate input
-            if (!pin || !email) {
-                return reply.code(400).send({
-                    success: false,
-                    error: 'Client PIN and email are required'
-                });
-            }
-
-            // Check if client exists with this PIN and email in consentForms table
-            const clientResult = await lawyersDb.query(
-                `SELECT "clientPin", "clientName", "clientEmail", "status"
-                 FROM "consentForms"
-                 WHERE "clientPin" = $1 AND "clientEmail" = $2`,
-                [pin, email]
-            );
-
-            if (clientResult.rows.length === 0) {
-                return reply.code(401).send({
-                    success: false,
-                    error: 'Invalid Client PIN or email. Please check your invitation email.'
-                });
-            }
-
-            const client = clientResult.rows[0];
-
-            // Generate 6-digit verification code
-            const verificationCode = crypto.randomInt(100000, 999999).toString();
-            const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-            // Save verification code to database
-            await lawyersDb.query(
-                `UPDATE "consentForms"
-                 SET "emailVerificationCode" = $1,
-                     "emailVerificationCodeExpiresAt" = $2,
-                     "emailVerificationCodeAttempts" = 0,
-                     "lastLoginAttempt" = NOW()
-                 WHERE "clientPin" = $3`,
-                [verificationCode, expiresAt, pin]
-            );
-
-            // Log activity
-            await lawyersDb.query(
-                `INSERT INTO "clientActivityLog" ("clientPin", "activityType", "activityDescription", "performedBy", "ipAddress", "createdAt")
-                 VALUES ($1, $2, $3, $4, $5, NOW())`,
-                [pin, 'emailCodeRequested', 'Client requested email verification code', client.clientName, request.ip]
-            );
-
-            // TODO: Send email with verification code via API-Dashboard NotificationService
-            // For now, log it (remove in production)
-            fastify.log.info(`[DEV] Email verification code for ${email}: ${verificationCode}`);
-
-            return reply.send({
-                success: true,
-                message: `Verification code sent to ${email}`,
-                expiresIn: 600,
-                redirectTo: '/clients-2fa',
-                clientName: client.clientName.split(' ')[0] // First name only
+            // Call SSOT API for login
+            const apiResponse = await fetch(API_URL + '/api/clientPortal/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin, email, ipAddress: clientIP })
             });
+
+            const apiData = await apiResponse.json();
+
+            if (!apiData.success) {
+                return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent(apiData.error || 'Login failed'));
+            }
+
+            // Send verification code via email service
+            try {
+                const emailResponse = await fetch(API_URL + '/api/email/send-client-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: email,
+                        code: apiData.verificationCode,
+                        clientName: apiData.clientName
+                    })
+                });
+
+                const emailResult = await emailResponse.json();
+
+                if (!emailResult.success) {
+                    console.error('[ClientsAuth] Failed to send verification email:', emailResult.error);
+                    return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent('Failed to send verification email. Please try again.'));
+                }
+
+            } catch (emailError) {
+                console.error('[ClientsAuth] Email service error:', emailError.message);
+                return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent('Email service unavailable. Please try again later.'));
+            }
+
+            // SERVER-SIDE REDIRECT to 2FA page
+            const clientFirstName = apiData.clientName.split(' ')[0];
+            return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&codeSent=true');
 
         } catch (error) {
-            fastify.log.error('Error requesting email code:', error);
-            return reply.code(500).send({
-                success: false,
-                error: 'Failed to send verification code'
-            });
+            console.error('[ClientsAuth] Error in login:', error.message);
+            return reply.redirect('/clients-login?pin=' + encodeURIComponent(pin || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
         }
     });
 
@@ -125,7 +112,7 @@ export default async function clientsAuthRoute(fastify, options) {
     // LOCATION BLOCK 3: 2FA PAGE (STEP 2 - VERIFICATION CODE)
     // ==============================================
     fastify.get('/clients-2fa', async (request, reply) => {
-        const { pin, email, name } = request.query;
+        const { pin, email, name, codeSent, error } = request.query;
 
         if (!pin || !email) {
             return reply.redirect('/clients-login?error=Please start from the login page');
@@ -135,105 +122,50 @@ export default async function clientsAuthRoute(fastify, options) {
             pin: pin,
             email: email,
             clientName: name || 'Client',
-            error: request.query.error || null
+            codeSent: codeSent === 'true',
+            error: error || null
         });
     });
 
     // ==============================================
-    // LOCATION BLOCK 4: VERIFY EMAIL CODE & CREATE SESSION
+    // LOCATION BLOCK 4: SERVER-SIDE VERIFY CODE (FORM POST)
+    // BLOCKCHAIN COMPLIANT: No fetch(), server-side redirect
+    // SSOT COMPLIANT: Calls API for DB operations
     // ==============================================
-    fastify.post('/api/clients/verify-email-code', async (request, reply) => {
-        const { pin, email, code } = request.body;
+    fastify.post('/clients-auth/verify-code', async (request, reply) => {
+        const { pin, email, verificationCode } = request.body;
+        const clientIP = request.ip;
+
+        // Validate input
+        if (!pin || !email || !verificationCode) {
+            return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('Verification code is required'));
+        }
 
         try {
-            // Validate input
-            if (!pin || !email || !code) {
-                return reply.code(400).send({
-                    success: false,
-                    error: 'Client PIN, email, and verification code are required'
-                });
+            // Call SSOT API for verification
+            const apiResponse = await fetch(API_URL + '/api/clientPortal/verifyCode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin, email, verificationCode, ipAddress: clientIP })
+            });
+
+            const apiData = await apiResponse.json();
+
+            if (!apiData.success) {
+                // Get client name for redirect
+                const clientFirstName = apiData.client?.name?.split(' ')[0] || 'Client';
+                return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent(apiData.error || 'Verification failed'));
             }
-
-            // Get client with verification code from consentForms
-            const clientResult = await lawyersDb.query(
-                `SELECT "clientPin", "clientName", "clientEmail", "emailVerificationCode",
-                        "emailVerificationCodeExpiresAt", "emailVerificationCodeAttempts",
-                        "status", "consentSignedAt"
-                 FROM "consentForms"
-                 WHERE "clientPin" = $1 AND "clientEmail" = $2`,
-                [pin, email]
-            );
-
-            if (clientResult.rows.length === 0) {
-                return reply.code(401).send({
-                    success: false,
-                    error: 'Invalid Client PIN or email'
-                });
-            }
-
-            const client = clientResult.rows[0];
-
-            // Check if code has expired
-            if (new Date() > new Date(client.emailVerificationCodeExpiresAt)) {
-                return reply.code(401).send({
-                    success: false,
-                    error: 'Verification code has expired. Please request a new one.'
-                });
-            }
-
-            // Check attempts (max 3)
-            if (client.emailVerificationCodeAttempts >= 3) {
-                return reply.code(403).send({
-                    success: false,
-                    error: 'Too many failed attempts. Please request a new verification code.'
-                });
-            }
-
-            // Verify code
-            if (client.emailVerificationCode !== code) {
-                // Increment failed attempts
-                await lawyersDb.query(
-                    `UPDATE "consentForms"
-                     SET "emailVerificationCodeAttempts" = "emailVerificationCodeAttempts" + 1
-                     WHERE "clientPin" = $1`,
-                    [pin]
-                );
-
-                return reply.code(401).send({
-                    success: false,
-                    error: 'Invalid verification code',
-                    attemptsRemaining: 2 - client.emailVerificationCodeAttempts
-                });
-            }
-
-            // Code is valid - clear verification code and update login stats
-            await lawyersDb.query(
-                `UPDATE "consentForms"
-                 SET "emailVerificationCode" = NULL,
-                     "emailVerificationCodeExpiresAt" = NULL,
-                     "emailVerificationCodeAttempts" = 0,
-                     "lastLogin" = NOW(),
-                     "totalLogins" = COALESCE("totalLogins", 0) + 1
-                 WHERE "clientPin" = $1`,
-                [pin]
-            );
-
-            // Log successful login
-            await lawyersDb.query(
-                `INSERT INTO "clientActivityLog" ("clientPin", "activityType", "activityDescription", "performedBy", "ipAddress", "createdAt")
-                 VALUES ($1, $2, $3, $4, $5, NOW())`,
-                [pin, 'successfulLogin', 'Client logged in successfully via 2FA', client.clientName, request.ip]
-            );
 
             // Generate JWT token
             const token = fastify.jwt.sign({
-                pin: client.clientPin,
-                name: client.clientName,
-                email: client.clientEmail,
+                pin: apiData.client.pin,
+                name: apiData.client.name,
+                email: apiData.client.email,
                 role: 'client'
             });
 
-            // Set secure cookie (production - HTTPS)
+            // Set secure cookie
             reply.setCookie('qolaeClientToken', token, {
                 path: '/',
                 httpOnly: true,
@@ -243,53 +175,110 @@ export default async function clientsAuthRoute(fastify, options) {
                 domain: process.env.COOKIE_DOMAIN || '.qolae.com'
             });
 
-            // Redirect to dashboard
+            // SERVER-SIDE REDIRECT to dashboard
             const dashboardUrl = process.env.DASHBOARD_URL || 'https://clients.qolae.com/clients-dashboard';
-
-            return reply.send({
-                success: true,
-                message: 'Login successful',
-                redirectTo: dashboardUrl,
-                client: {
-                    pin: client.clientPin,
-                    name: client.clientName,
-                    email: client.clientEmail,
-                    status: client.status,
-                    consentSignedAt: client.consentSignedAt
-                }
-            });
+            return reply.redirect(dashboardUrl);
 
         } catch (error) {
-            fastify.log.error('Error verifying email code:', error);
-            return reply.code(500).send({
-                success: false,
-                error: 'Failed to verify code'
-            });
+            console.error('[ClientsAuth] Error verifying code:', error.message);
+            return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
         }
     });
 
     // ==============================================
-    // LOCATION BLOCK 5: RESEND VERIFICATION CODE
+    // LOCATION BLOCK 5: SERVER-SIDE RESEND CODE (FORM POST)
+    // BLOCKCHAIN COMPLIANT: No fetch(), server-side redirect
+    // SSOT COMPLIANT: Calls API for DB operations
     // ==============================================
-    fastify.post('/api/clients/resend-code', async (request, reply) => {
+    fastify.post('/clients-auth/resend-code', async (request, reply) => {
         const { pin, email } = request.body;
+        const clientIP = request.ip;
 
-        // Reuse the request-email-code logic
-        return fastify.inject({
-            method: 'POST',
-            url: '/api/clients/request-email-code',
-            payload: { pin, email }
-        }).then(response => {
-            reply.code(response.statusCode).send(JSON.parse(response.payload));
-        });
+        if (!pin || !email) {
+            return reply.redirect('/clients-login?error=Session expired. Please start again.');
+        }
+
+        try {
+            // Call SSOT API for resend
+            const apiResponse = await fetch(API_URL + '/api/clientPortal/resendCode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin, email, ipAddress: clientIP })
+            });
+
+            const apiData = await apiResponse.json();
+
+            if (!apiData.success) {
+                return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&error=' + encodeURIComponent(apiData.error || 'Failed to resend code'));
+            }
+
+            // Send verification code via email service
+            try {
+                const emailResponse = await fetch(API_URL + '/api/email/send-client-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: email,
+                        code: apiData.verificationCode,
+                        clientName: apiData.clientName
+                    })
+                });
+
+                const emailResult = await emailResponse.json();
+
+                if (!emailResult.success) {
+                    const clientFirstName = apiData.clientName.split(' ')[0];
+                    return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent('Failed to send new code. Please try again.'));
+                }
+
+            } catch (emailError) {
+                console.error('[ClientsAuth] Email service error:', emailError.message);
+                const clientFirstName = apiData.clientName.split(' ')[0];
+                return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent('Email service unavailable.'));
+            }
+
+            // SERVER-SIDE REDIRECT back to 2FA with success message
+            const clientFirstName = apiData.clientName.split(' ')[0];
+            return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&codeSent=true');
+
+        } catch (error) {
+            console.error('[ClientsAuth] Error resending code:', error.message);
+            return reply.redirect('/clients-2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
+        }
     });
 
     // ==============================================
-    // LOCATION BLOCK 6: LOGOUT
+    // LOCATION BLOCK 6: LOGOUT (GET - Link based)
+    // BLOCKCHAIN COMPLIANT: Server-side redirect
+    // SSOT COMPLIANT: Calls API for audit logging
     // ==============================================
-    fastify.post('/api/clients/logout', async (request, reply) => {
+    fastify.get('/clients-auth/logout', async (request, reply) => {
+        const clientIP = request.ip;
+
         try {
-            // Clear cookie (production - HTTPS)
+            // Try to get user info for logging
+            let pin = 'unknown';
+            try {
+                await request.jwtVerify();
+                pin = request.user.pin;
+            } catch (e) {
+                // Not authenticated, still clear cookie
+            }
+
+            // Log logout via API
+            if (pin !== 'unknown') {
+                try {
+                    await fetch(API_URL + '/api/clientPortal/logout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pin, ipAddress: clientIP })
+                    });
+                } catch (logError) {
+                    console.error('[ClientsAuth] Error logging logout:', logError.message);
+                }
+            }
+
+            // Clear cookie
             reply.clearCookie('qolaeClientToken', {
                 path: '/',
                 httpOnly: true,
@@ -298,38 +287,15 @@ export default async function clientsAuthRoute(fastify, options) {
                 domain: process.env.COOKIE_DOMAIN || '.qolae.com'
             });
 
-            return reply.send({
-                success: true,
-                message: 'Logged out successfully',
-                redirectTo: '/clients-login'
-            });
+            return reply.redirect('/clients-login?message=You have been logged out successfully.');
+
         } catch (error) {
-            fastify.log.error('Error logging out:', error);
-            return reply.code(500).send({
-                success: false,
-                error: 'Failed to logout'
-            });
+            console.error('[ClientsAuth] Error logging out:', error.message);
+            return reply.redirect('/clients-login');
         }
     });
 
-    // ==============================================
-    // LOCATION BLOCK 7: CHECK AUTH STATUS
-    // ==============================================
-    fastify.get('/api/clients/auth-status', async (request, reply) => {
-        try {
-            await request.jwtVerify();
-            return reply.send({
-                authenticated: true,
-                client: {
-                    pin: request.user.pin,
-                    name: request.user.name,
-                    email: request.user.email
-                }
-            });
-        } catch (error) {
-            return reply.send({
-                authenticated: false
-            });
-        }
-    });
+    // Note: Health check route is defined in Clients_server.js to avoid duplication
+
+    console.log('[ClientsAuth] Routes registered (SSOT compliant)');
 }

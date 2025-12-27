@@ -3,10 +3,11 @@
 // ==============================================
 // Purpose: Secure workspace for clients - consent, documents, reports
 // Author: Liz
-// Date: 26th December 2025
+// Date: 27th December 2025
 // Port: 3010
 // PM2 Process: qolae-clients
-// Database: qolae_lawyers (consentForms table)
+// Architecture: SSOT - Calls api.qolae.com for data
+// Database: qolae_clients (via API-Dashboard SSOT)
 // ==============================================
 
 // ==============================================
@@ -120,8 +121,8 @@ server.decorate('authenticateClient', async function(request, reply) {
 // LOCATION BLOCK E: ROUTES REGISTRATION
 // ==============================================
 
-// Client Routes (Dashboard, Consent, Documents, Reports)
-await server.register(import('./routes/clientRoutes.js'));
+// Client Workflow Routes (SSOT compliant - calls API for data)
+await server.register(import('./routes/clientWorkflowRoutes.js'));
 
 // ==============================================
 // LOCATION BLOCK F: ROOT ROUTE
@@ -148,7 +149,8 @@ server.get('/health', async (request, reply) => {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         environment: process.env.NODE_ENV || 'production',
-        database: 'qolae_lawyers (consentForms table)',
+        architecture: 'SSOT via API-Dashboard',
+        database: 'qolae_clients (via api.qolae.com)',
     };
 });
 

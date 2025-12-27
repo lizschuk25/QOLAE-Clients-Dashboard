@@ -14,8 +14,8 @@ import pg from 'pg';
 const { Pool } = pg;
 
 // Database connection
-const lawyersDb = new Pool({
-    connectionString: process.env.LAWYERS_DATABASE_URL
+const clientsDb = new Pool({
+    connectionString: process.env.CLIENTS_DATABASE_URL
 });
 
 // ==============================================
@@ -37,9 +37,9 @@ export async function verifyClientSession(request, reply) {
         }
 
         // Optionally verify client still exists in database
-        const clientResult = await lawyersDb.query(
-            `SELECT "clientPin", "clientName", "clientEmail", "status"
-             FROM "consentForms"
+        const clientResult = await clientsDb.query(
+            `SELECT "clientPin", "clientName", "clientEmail", "workflowStatus"
+             FROM "clients"
              WHERE "clientPin" = $1`,
             [request.user.pin]
         );
@@ -148,7 +148,7 @@ export async function refreshClientSession(request, reply) {
  */
 export async function logClientActivity(clientPin, activityType, description, performedBy, ipAddress) {
     try {
-        await lawyersDb.query(
+        await clientsDb.query(
             `INSERT INTO "clientActivityLog" ("clientPin", "activityType", "activityDescription", "performedBy", "ipAddress", "createdAt")
              VALUES ($1, $2, $3, $4, $5, NOW())`,
             [clientPin, activityType, description, performedBy, ipAddress]
