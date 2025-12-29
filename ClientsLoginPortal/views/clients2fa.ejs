@@ -1,598 +1,679 @@
 <!-- ==============================================
-     clients2fa.ejs - Clients 2FA Verification Page
-     QOLAE Clients Portal - Step 2: Email Verification Code Entry
-     Author: Liz
-     Date: 27th December 2025
-     ✅ BLOCKCHAIN COMPLIANT: Server-side form POST, no fetch()
+     clients-2fa.ejs - 2-Way Authentication Page
+     QOLAE Clients Portal - Email Verification Flow
+     Author: Liz 👑
      ============================================== -->
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <!-- ==============================================
-         LOCATION BLOCK A: META & CONFIGURATION
-         ============================================== -->
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Code - QOLAE Portal</title>
-
-    <!-- ==============================================
-         LOCATION BLOCK B: STYLES
-         B.1: Reset & Base Styles
-         B.2: QOLAE Logo
-         B.3: Layout Container
-         B.4: 2FA Card
-         B.5: Code Input Boxes
-         B.6: Buttons
-         B.7: Messages
-         B.8: Timer
-         B.9: Responsive Design
-         ============================================== -->
-
-    <style>
-        /* ============================================== */
-        /* B.1: RESET & BASE STYLES */
-        /* ============================================== */
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #ffffff;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-            margin: 0;
-        }
-
-        /* ============================================== */
-        /* B.2: QOLAE LOGO */
-        /* ============================================== */
-
-        .qolae-logo {
-            margin-bottom: 60px;
-            text-align: center;
-            background: none;
-            border: none;
-            box-shadow: none;
-        }
-
-        .qolae-logo img {
-            max-width: 1200px;
-            width: 110%;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-        }
-
-        /* ============================================== */
-        /* B.3: LAYOUT CONTAINER */
-        /* ============================================== */
-
-        .main-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            max-width: 500px;
-        }
-
-        /* ============================================== */
-        /* B.4: 2FA CARD - BASKERVILLE FONT */
-        /* ============================================== */
-
-        .twofa-card {
-            background: white;
-            border-radius: 16px;
-            padding: 40px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 450px;
-            border: 1px solid #e9ecef;
-            font-family: 'Baskerville', 'Helvetica Neue', serif;
-        }
-
-        .twofa-title {
-            color: #4facfe;
-            font-size: 1.5rem;
-            font-weight: 600;
-            text-align: center;
-            margin-bottom: 10px;
-            font-family: 'Baskerville', 'Helvetica Neue', serif;
-        }
-
-        .welcome-text {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-
-        .welcome-text h2 {
-            color: #2d3748;
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .welcome-text p {
-            color: #6b7280;
-            font-size: 14px;
-        }
-
-        .step-indicator {
-            text-align: center;
-            margin-bottom: 24px;
-            color: #4facfe;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        /* ============================================== */
-        /* B.5: CODE INPUT BOXES */
-        /* ============================================== */
-
-        .form-group {
-            margin-bottom: 24px;
-        }
-
-        .form-label {
-            display: block;
-            color: #374151;
-            font-weight: 600;
-            margin-bottom: 12px;
-            font-size: 14px;
-            text-align: center;
-        }
-
-        .code-input-container {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            margin-bottom: 16px;
-        }
-
-        .code-input {
-            width: 50px;
-            height: 60px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: 600;
-            border: 2px solid #4facfe;
-            border-radius: 8px;
-            transition: all 0.3s;
-            font-family: Arial, sans-serif;
-        }
-
-        .code-input:focus {
-            outline: none;
-            border-color: #00c9d8;
-            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
-        }
-
-        /* Hidden input for full code submission */
-        .hidden-code-input {
-            position: absolute;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .email-display {
-            text-align: center;
-            color: #6b7280;
-            font-size: 13px;
-            margin-top: 12px;
-        }
-
-        .email-display span {
-            color: #4facfe;
-            font-weight: 600;
-        }
-
-        /* ============================================== */
-        /* B.6: BUTTONS - TURQUOISE */
-        /* ============================================== */
-
-        .verify-btn {
-            width: 100%;
-            padding: 14px 20px;
-            background: linear-gradient(135deg, #4facfe, #00f2fe);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: Arial, sans-serif;
-        }
-
-        .verify-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
-        }
-
-        .verify-btn:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .resend-btn {
-            display: block;
-            width: 100%;
-            background: transparent;
-            color: #4facfe;
-            border: none;
-            padding: 12px;
-            font-size: 14px;
-            cursor: pointer;
-            text-decoration: underline;
-            margin-top: 16px;
-            text-align: center;
-        }
-
-        .resend-btn:hover {
-            color: #00c9d8;
-        }
-
-        /* ============================================== */
-        /* B.7: MESSAGES */
-        /* ============================================== */
-
-        .error-message {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            text-align: center;
-        }
-
-        .success-message {
-            background: #dcfce7;
-            border: 1px solid #bbf7d0;
-            color: #16a34a;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            text-align: center;
-        }
-
-        .info-message {
-            background: #f0f9ff;
-            border: 1px solid #bae6fd;
-            color: #0369a1;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            text-align: center;
-        }
-
-        /* ============================================== */
-        /* B.8: TIMER */
-        /* ============================================== */
-
-        .timer {
-            text-align: center;
-            color: #6b7280;
-            font-size: 13px;
-            margin-top: 12px;
-        }
-
-        .timer.expired {
-            color: #dc2626;
-        }
-
-        .timer .countdown {
-            font-weight: 600;
-            color: #4facfe;
-        }
-
-        /* ============================================== */
-        /* B.9: BACK LINK & SECURITY */
-        /* ============================================== */
-
-        .back-link {
-            text-align: center;
-            margin-top: 20px;
-        }
-
-        .back-link a {
-            color: #6b7280;
-            font-size: 13px;
-            text-decoration: none;
-        }
-
-        .back-link a:hover {
-            color: #4facfe;
-        }
-
-        .security-notice {
-            margin-top: 24px;
-            padding: 12px;
-            background: #f8f9ff;
-            border-radius: 8px;
-            border-left: 3px solid #4facfe;
-        }
-
-        .security-notice p {
-            color: #6b7280;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* ============================================== */
-        /* B.10: SPINNER ANIMATION */
-        /* ============================================== */
-
-        .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #ffffff;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 0.8s linear infinite;
-            margin-right: 8px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* ============================================== */
-        /* B.11: RESPONSIVE DESIGN */
-        /* ============================================== */
-
-        @media (max-width: 768px) {
-            .qolae-logo img {
-                max-width: 300px;
-            }
-
-            .twofa-card {
-                padding: 30px 25px;
-            }
-
-            .code-input {
-                width: 42px;
-                height: 52px;
-                font-size: 20px;
-            }
-        }
-    </style>
-</head>
-
-<body>
-    <!-- ==============================================
-         LOCATION BLOCK C: HTML STRUCTURE
-         C.1: QOLAE Logo
-         C.2: Main Container
-         C.3: 2FA Card
-         C.4: Server-Side Messages
-         C.5: Verification Form (Server-side POST)
-         C.6: Resend Form (Server-side POST)
-         C.7: Back Link
-         ============================================== -->
-
-    <!-- C.1: QOLAE Logo at Top -->
-    <div class="qolae-logo">
-        <img src="/centralRepository/public/images/qolaeNewLogo.png"
-             alt="QOLAE Logo"
-             onerror="this.style.display='none'">
-    </div>
-
-    <!-- C.2: Main Container -->
-    <div class="main-container">
-        <!-- C.3: 2FA Card -->
-        <div class="twofa-card">
-            <h2 class="twofa-title">Email Verification</h2>
-
-            <div class="welcome-text">
-                <h2>Welcome, <%= clientName %></h2>
-                <p>We've sent a verification code to your email</p>
-            </div>
-
-            <!-- C.4: Server-Side Messages -->
-            <% if (typeof error !== 'undefined' && error) { %>
-                <div class="error-message"><%= error %></div>
-            <% } %>
-
-            <% if (typeof codeSent !== 'undefined' && codeSent) { %>
-                <div class="success-message">Verification code sent to your email!</div>
-            <% } %>
-
-            <div class="step-indicator">Step 2 of 2: Enter Verification Code</div>
-
-            <!-- C.5: ✅ SERVER-SIDE FORM: No fetch(), posts directly to backend -->
-            <form id="verifyForm" method="POST" action="/clients-auth/verify-code">
-                <!-- Hidden fields for PIN and email -->
-                <input type="hidden" name="pin" value="<%= pin %>">
-                <input type="hidden" name="email" value="<%= email %>">
-                <!-- Hidden field for combined verification code -->
-                <input type="hidden" name="verificationCode" id="verificationCodeHidden" value="">
-
-                <div class="form-group">
-                    <label class="form-label">6-Digit Verification Code</label>
-                    <div class="code-input-container">
-                        <input type="text" class="code-input" maxlength="1" data-index="0" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code">
-                        <input type="text" class="code-input" maxlength="1" data-index="1" inputmode="numeric" pattern="[0-9]">
-                        <input type="text" class="code-input" maxlength="1" data-index="2" inputmode="numeric" pattern="[0-9]">
-                        <input type="text" class="code-input" maxlength="1" data-index="3" inputmode="numeric" pattern="[0-9]">
-                        <input type="text" class="code-input" maxlength="1" data-index="4" inputmode="numeric" pattern="[0-9]">
-                        <input type="text" class="code-input" maxlength="1" data-index="5" inputmode="numeric" pattern="[0-9]">
-                    </div>
-                    <p class="email-display">Code sent to <span><%= email %></span></p>
-                    <p class="timer" id="timer">Code expires in <span class="countdown" id="countdown">10:00</span></p>
-                </div>
-
-                <button type="submit" class="verify-btn" id="verifyBtn">Verify & Login</button>
-            </form>
-
-            <!-- C.6: ✅ SERVER-SIDE RESEND FORM: No fetch() -->
-            <form id="resendForm" method="POST" action="/clients-auth/resend-code">
-                <input type="hidden" name="pin" value="<%= pin %>">
-                <input type="hidden" name="email" value="<%= email %>">
-                <button type="submit" class="resend-btn" id="resendBtn">Resend Code</button>
-            </form>
-
-            <!-- C.7: Back Link -->
-            <div class="back-link">
-                <a href="/clientsLogin?pin=<%= pin %>">← Back to login</a>
-            </div>
-
-            <!-- Security Notice -->
-            <div class="security-notice">
-                <p>
-                    <svg width="16" height="16" fill="#4facfe" viewBox="0 0 24 24">
-                        <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z"/>
-                    </svg>
-                    Your session is encrypted and GDPR compliant
-                </p>
-            </div>
+     <!DOCTYPE html>
+     <html lang="en">
+     <head>
+       <!-- ==============================================
+            LOCATION BLOCK A: META & EXTERNAL RESOURCES
+            A.1: Document Metadata
+            A.2: External Stylesheets
+            A.3: External Scripts
+            ============================================== -->
+       
+       <!-- A.1: Document Metadata -->
+       <meta charset="UTF-8" />
+       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+       <title>QOLAE 2-Way Authentication</title>
+       
+       <!-- A.2: External Stylesheets -->
+       <link
+         rel="stylesheet"
+         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+       />
+       
+       <!-- A.3: External Scripts -->
+       <!-- ✅ SERVER-SIDE COMPLIANT: No client-side HTTP libraries -->
+     
+       <!-- ==============================================
+            LOCATION BLOCK B: STYLES
+            B.1: Reset & Base Styles
+            B.2: Layout & Container Styles
+            B.3: Logo & Branding
+            B.4: Authentication Card
+            B.5: Welcome Header
+            B.6: Authentication Methods
+            B.7: Buttons
+            B.8: Security Badge
+            B.9: Security Notice
+            B.10: Modal Styles
+            B.11: Toast Notifications
+            B.12: Responsive Design
+            B.13: Accessibility
+            ============================================== -->
+       
+       <style>
+         /* ============================================== */
+         /* B.1: RESET & BASE STYLES */
+         /* ============================================== */
+         
+         * {
+           margin: 0;
+           padding: 0;
+           box-sizing: border-box;
+         }
+         
+         body {
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #ffffff;
+           min-height: 100vh;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           padding: 20px;
+           position: relative;
+           overflow-x: hidden;
+         }
+         
+         /* Animated background elements - Subtle dots on white */
+         body::before {
+           content: '';
+           position: absolute;
+           top: -50%;
+           left: -50%;
+           width: 200%;
+           height: 200%;
+           background: radial-gradient(circle, rgba(105, 51, 130, 0.05) 1px, transparent 1px);
+           background-size: 50px 50px;
+           animation: float 20s ease-in-out infinite;
+           z-index: 0;
+         }
+         
+         @keyframes float {
+           0%, 100% { transform: translateY(0px) rotate(0deg); }
+           50% { transform: translateY(-20px) rotate(180deg); }
+         }
+         
+         /* ============================================== */
+         /* B.2: LAYOUT & CONTAINER STYLES */
+         /* ============================================== */
+         
+         .main-container {
+           position: relative;
+           z-index: 1;
+           width: 100%;
+           max-width: 900px;
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           justify-content: center;
+         }
+         
+         /* ============================================== */
+         /* B.3: LOGO & BRANDING */
+         /* ============================================== */
+         
+         .logo-enhanced {
+           text-align: center;
+           margin-bottom: 2rem;
+           animation: slideInDown 0.8s ease-out;
+         }
+         
+         @keyframes slideInDown {
+           from {
+             opacity: 0;
+             transform: translateY(-30px);
+           }
+           to {
+             opacity: 1;
+             transform: translateY(0);
+           }
+         }
+         
+         .logo-enhanced img {
+           max-width: 1200px;
+           width: 110%;
+           height: auto;
+           display: block;
+           margin: 0 auto;
+           filter: none;
+           opacity: 1;
+           transition: all 0.3s ease;
+           background: transparent !important;
+           border: none !important;
+           outline: none !important;
+         }
+         
+         .logo-enhanced:hover img {
+           transform: scale(1.02);
+         }
+         
+         /* ============================================== */
+         /* B.4: AUTHENTICATION CARD */
+         /* ============================================== */
+         
+         .auth-card {
+           background: rgba(255, 255, 255, 0.98);
+           backdrop-filter: blur(15px);
+           border-radius: 24px;
+           padding: 2rem;
+           box-shadow: 0 20px 60px rgba(105, 51, 130, 0.12);
+           border: 1px solid rgba(105, 51, 130, 0.1);
+           position: relative;
+           width: 100%;
+           max-width: 800px;
+           animation: slideInUp 0.8s ease-out 0.2s both;
+         }
+         
+         @keyframes slideInUp {
+           from {
+             opacity: 0;
+             transform: translateY(30px);
+           }
+           to {
+             opacity: 1;
+             transform: translateY(0);
+           }
+         }
+         
+         /* ============================================== */
+         /* B.5: WELCOME HEADER */
+         /* ============================================== */
+         
+         .welcome-header {
+           text-align: center;
+           margin-bottom: 1.5rem;
+         }
+         
+         .welcome-header h2 {
+           color: #374151;
+           font-size: 1.6rem;
+           font-weight: 700;
+           margin-bottom: 0.3rem;
+         }
+         
+         .welcome-header .firm-name {
+           color: #4facfe;
+           font-size: 1rem;
+           font-weight: 600;
+           margin-bottom: 0.3rem;
+         }
+         
+         .welcome-header .credentials {
+           color: #6b7280;
+           font-size: 0.85rem;
+         }
+         
+         /* ============================================== */
+         /* B.6: AUTHENTICATION METHODS */
+         /* ============================================== */
+         
+         .auth-methods {
+           display: grid;
+           grid-template-columns: 1fr;
+           gap: 1.5rem;
+           margin-bottom: 1rem;
+         }
+         
+         .auth-option {
+           background: white;
+           border: 2px solid #f3f4f6;
+           border-radius: 20px;
+           padding: 1.2rem;
+           text-align: center;
+           transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+           position: relative;
+           overflow: hidden;
+           cursor: pointer;
+           display: flex;
+           flex-direction: column;
+           height: 100%;
+         }
+         
+         .auth-option::before {
+           content: '';
+           position: absolute;
+           top: 0;
+           left: -100%;
+           width: 100%;
+           height: 100%;
+           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+           transition: left 0.6s;
+         }
+         
+         .auth-option:hover::before {
+           left: 100%;
+         }
+         
+         .auth-option:hover {
+           border-color: #4facfe;
+           transform: translateY(-8px) scale(1.02);
+           box-shadow: 0 20px 40px rgba(105, 51, 130, 0.2);
+         }
+         
+         .auth-icon {
+           width: 60px;
+           height: 60px;
+           margin: 0 auto 0.8rem;
+           border-radius: 16px;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           font-size: 1.6rem;
+           transition: all 0.3s ease;
+         }
+         
+         .email-icon {
+           background: linear-gradient(135deg, #10b981, #059669);
+           color: white;
+         }
+         
+         .auth-option:hover .auth-icon {
+           transform: scale(1.1) rotate(5deg);
+         }
+         
+         .auth-option h3 {
+           color: #374151;
+           font-size: 1.2rem;
+           font-weight: 600;
+           margin-bottom: 0.6rem;
+         }
+         
+         .auth-option p {
+           color: #6b7280;
+           font-size: 0.85rem;
+           line-height: 1.4;
+           margin-bottom: 1rem;
+           flex-grow: 1;
+         }
+         
+         /* ============================================== */
+         /* B.7: BUTTONS */
+         /* ============================================== */
+         
+         .auth-button {
+           background: linear-gradient(135deg, #10b981, #059669);
+           color: white;
+           border: none;
+           border-radius: 14px;
+           padding: 16px 28px;
+           font-size: 1rem;
+           font-weight: 600;
+           cursor: pointer;
+           transition: all 0.3s ease;
+           width: 100%;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           gap: 12px;
+           position: relative;
+           overflow: hidden;
+         }
+         
+         .auth-button::before {
+           content: '';
+           position: absolute;
+           top: 0;
+           left: -100%;
+           width: 100%;
+           height: 100%;
+           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+           transition: left 0.5s;
+         }
+         
+         .auth-button:hover::before {
+           left: 100%;
+         }
+         
+         .auth-button:hover {
+           transform: translateY(-3px);
+           box-shadow: 0 12px 28px rgba(16, 185, 129, 0.4);
+         }
+         
+         .auth-button:active {
+           transform: translateY(-1px);
+         }
+         
+         .auth-button:disabled {
+           background: #9ca3af;
+           cursor: not-allowed;
+           transform: none;
+         }
+         
+         .email-button {
+           background: linear-gradient(135deg, #10b981, #059669);
+         }
+         
+         .email-button:hover {
+           box-shadow: 0 12px 28px rgba(16, 185, 129, 0.4);
+         }
+         
+         .secondary-button {
+           background: white;
+           color: #6b7280;
+           border: 2px solid #e5e7eb;
+           border-radius: 16px;
+           padding: 16px 24px;
+           font-size: 1rem;
+           font-weight: 600;
+           cursor: pointer;
+           transition: all 0.3s ease;
+           flex: 1;
+         }
+         
+         .secondary-button:hover {
+           border-color: #4facfe;
+           color: #4facfe;
+           transform: translateY(-2px);
+         }
+         
+         /* ============================================== */
+         /* B.8: SECURITY BADGE */
+         /* ============================================== */
+         
+         .security-badge {
+           position: absolute;
+           top: 15px;
+           right: 15px;
+           background: linear-gradient(135deg, #4facfe, #00f2fe);
+           color: white;
+           padding: 8px 16px;
+           border-radius: 20px;
+           font-size: 0.8rem;
+           font-weight: 600;
+         }
+         
+         /* ============================================== */
+         /* B.9: SECURITY NOTICE */
+         /* ============================================== */
+         
+         .security-notice {
+           text-align: center;
+           margin-top: 1.5rem;
+         }
+         
+         .security-notice p {
+           color: #6b7280;
+           font-size: 0.9rem;
+           font-weight: 500;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           gap: 8px;
+         }
+         
+         /* ============================================== */
+         /* B.10: MODAL STYLES */
+         /* ============================================== */
+         
+         .modal-overlay {
+           position: fixed;
+           inset: 0;
+           background: rgba(0, 0, 0, 0.7);
+           backdrop-filter: blur(8px);
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           z-index: 1000;
+           padding: 20px;
+           animation: fadeIn 0.3s ease-out;
+         }
+         
+         @keyframes fadeIn {
+           from { opacity: 0; }
+           to { opacity: 1; }
+         }
+         
+         .modal-content {
+           background: white;
+           border-radius: 24px;
+           padding: 3rem;
+           width: 100%;
+           max-width: 450px;
+           box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+           animation: modalSlideIn 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+           position: relative;
+         }
+         
+         @keyframes modalSlideIn {
+           from {
+             opacity: 0;
+             transform: translateY(-20px) scale(0.95);
+           }
+           to {
+             opacity: 1;
+             transform: translateY(0) scale(1);
+           }
+         }
+         
+         .modal-content h3 {
+           color: #374151;
+           font-size: 1.6rem;
+           font-weight: 700;
+           margin-bottom: 1rem;
+           text-align: center;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           gap: 12px;
+         }
+         
+         .modal-content p {
+           color: #6b7280;
+           text-align: center;
+           margin-bottom: 2rem;
+           line-height: 1.6;
+         }
+         
+         .code-input {
+           width: 100%;
+           padding: 20px;
+           border: 2px solid #e5e7eb;
+           border-radius: 16px;
+           font-size: 1.5rem;
+           text-align: center;
+           letter-spacing: 8px;
+           font-weight: 700;
+           margin-bottom: 2rem;
+           transition: all 0.3s ease;
+           font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+         }
+         
+         .code-input:focus {
+           outline: none;
+           border-color: #00c9d8;
+           box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.2);
+         }
+         
+         .modal-buttons {
+           display: flex;
+           gap: 1rem;
+         }
+         
+         /* ============================================== */
+         /* B.11: TOAST NOTIFICATIONS */
+         /* ============================================== */
+         
+         .notification {
+           position: fixed;
+           top: 30px;
+           right: 30px;
+           padding: 20px 28px;
+           border-radius: 16px;
+           color: white;
+           font-weight: 600;
+           z-index: 1001;
+           animation: slideInRight 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+           max-width: 400px;
+           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+           backdrop-filter: blur(10px);
+         }
+         
+         .notification.success {
+           background: rgba(16, 185, 129, 0.95);
+           border: 1px solid rgba(16, 185, 129, 0.3);
+           color: white;
+         }
+         
+         .notification.error {
+           background: rgba(239, 68, 68, 0.95);
+           border: 1px solid rgba(239, 68, 68, 0.3);
+           color: white;
+         }
+         
+         @keyframes slideInRight {
+           from {
+             opacity: 0;
+             transform: translateX(100%);
+           }
+           to {
+             opacity: 1;
+             transform: translateX(0);
+           }
+         }
+         
+         /* ============================================== */
+         /* B.12: RESPONSIVE DESIGN */
+         /* ============================================== */
+         
+         @media (max-width: 768px) {
+           .auth-methods {
+             grid-template-columns: 1fr;
+             gap: 1.5rem;
+           }
+           
+           .auth-card {
+             padding: 2rem;
+           }
+           
+           .logo-enhanced {
+             margin-bottom: 1.5rem;
+           }
+           
+           .modal-content {
+             padding: 2rem;
+           }
+           
+           .code-input {
+             letter-spacing: 4px;
+             font-size: 1.2rem;
+           }
+         }
+         
+         /* ============================================== */
+         /* B.13: ACCESSIBILITY */
+         /* ============================================== */
+         
+         @media (prefers-reduced-motion: reduce) {
+           *, *::before, *::after {
+             animation-duration: 0.01ms !important;
+             animation-iteration-count: 1 !important;
+             transition-duration: 0.01ms !important;
+           }
+         }
+       </style>
+     </head>
+     
+     <body>
+       <!-- ==============================================
+            LOCATION BLOCK C: HTML STRUCTURE
+            C.1: Logo
+            C.2: Authentication Card
+            C.3: Welcome Header
+            C.4: Authentication Methods
+            ============================================== -->
+       
+       <div class="main-container">
+        <!-- C.1: QOLAE Logo -->
+        <div class="logo-enhanced">
+          <img src="<%= process.env.QOLAE_LOGO_URL || 'https://api.qolae.com/centralRepository/public/images/qolaeNewLogo.png' %>" alt="QOLAE Logo" />
         </div>
-    </div>
+         
+         <!-- C.2: Main Authentication Card -->
+         <div class="auth-card">
+           <!-- C.3: Welcome Header -->
+           <div class="welcome-header">
+             <h2>Welcome, <%= clientName %></h2>
+             <div class="credentials">Client PIN: <%= clientPin %> | Email: <%= email %></div>
+           </div>
+           
+           <!-- C.4: Authentication Methods -->
+           <div class="auth-methods">
+             <!-- Email Verification -->
+             <div class="auth-option">
+               <span class="security-badge">Email Code</span>
+               <div class="auth-icon email-icon">
+                 <i class="fas fa-envelope"></i>
+               </div>
+               <h3>Email Verification</h3>
+               <p>Receive a 6-digit verification code via email as a secure authentication method.</p>
+               <!-- ✅ SERVER-SIDE: Form POST submission -->
+               <form method="POST" action="/clientsAuth/requestEmailCode" style="display: inline;">
+                 <button type="submit" id="emailBtn" class="auth-button email-button">
+                   Send Verification Code
+                 </button>
+               </form>
+             </div>
+           </div>
 
-    <!-- ==============================================
-         LOCATION BLOCK D: JAVASCRIPT (UI ONLY)
-         ✅ BLOCKCHAIN COMPLIANT: No fetch() calls
-         D.1: Code Input Navigation (UI Enhancement)
-         D.2: Form Submit Handler (combines code)
-         D.3: Countdown Timer (UI only)
-         D.4: Form Loading States
-         ============================================== -->
+           <!-- ✅ SERVER-SIDE: Verification Code Modal (shown when ?codeSent=true) -->
+           <% if (typeof query !== 'undefined' && query.codeSent === 'true') { %>
+             <div class="modal-overlay" id="codeModal">
+               <div class="modal-content">
+                 <h3>
+                   <i class="fas fa-envelope" style="color: #10b981;"></i>
+                   Enter Verification Code
+                 </h3>
+                 <p>Please enter the 6-digit code sent to your email address.</p>
+                 <form method="POST" action="/clientsAuth/verify2fa" id="verifyForm">
+                   <input id="emailCodeInput" name="verificationCode" type="text" class="code-input" placeholder="000000" maxlength="6" required autofocus />
+                   <div class="modal-buttons">
+                     <a href="/clients2fa" class="secondary-button">Cancel</a>
+                     <button type="submit" class="auth-button">
+                       <i class="fas fa-check"></i> Verify Code
+                     </button>
+                   </div>
+                 </form>
+               </div>
+             </div>
+           <% } %>
 
-    <script>
-        // ==============================================
-        // D.1: CODE INPUT NAVIGATION
-        // Handles digit-by-digit entry and auto-advance
-        // ==============================================
+           <!-- ✅ SERVER-SIDE: Error/Success Messages -->
+           <% if (typeof query !== 'undefined' && query.error) { %>
+             <div class="notification error" id="errorNotification">
+               <%= decodeURIComponent(query.error) %>
+             </div>
+           <% } %>
+           <% if (typeof query !== 'undefined' && query.codeSent === 'true') { %>
+             <div class="notification success" id="successNotification">
+               Verification code sent to your email!
+             </div>
+           <% } %>
+         </div>
+       </div>
+     
+       <!-- ==============================================
+            LOCATION BLOCK D: JAVASCRIPT
+            D.1: Configuration & Credentials
+            D.2: Error Handler Utility
+            D.3: Authentication Service
+            D.4: Event Listeners Initialization
+            D.5: Email Verification Modal
+            D.6: Code Verification Function
+            D.7: Close Modal Function
+            ============================================== -->
+       
+       <script>
+         // ==============================================
+         // ✅ SERVER-SIDE COMPLIANT: Minimal JavaScript
+         // No axios, no fetch, no client-side HTTP calls
+         // ==============================================
 
-        const codeInputs = document.querySelectorAll('.code-input');
-        const verificationCodeHidden = document.getElementById('verificationCodeHidden');
+         document.addEventListener('DOMContentLoaded', function() {
+           console.log('✅ 2FA Page loaded - Server-side compliant');
 
-        // Focus first input on load
-        window.addEventListener('DOMContentLoaded', () => {
-            codeInputs[0].focus();
-        });
-
-        // Update hidden field with combined code
-        function updateHiddenCode() {
-            const code = Array.from(codeInputs).map(input => input.value).join('');
-            verificationCodeHidden.value = code;
-            return code;
-        }
-
-        // Handle code input navigation
-        codeInputs.forEach((input, index) => {
-            input.addEventListener('input', (e) => {
-                const value = e.target.value;
-
-                // Only allow numbers
-                if (!/^\d*$/.test(value)) {
-                    e.target.value = '';
-                    return;
-                }
-
-                // Update hidden code field
-                updateHiddenCode();
-
-                // Move to next input
-                if (value && index < codeInputs.length - 1) {
-                    codeInputs[index + 1].focus();
-                }
-            });
-
-            input.addEventListener('keydown', (e) => {
-                // Handle backspace
-                if (e.key === 'Backspace' && !e.target.value && index > 0) {
-                    codeInputs[index - 1].focus();
-                }
-            });
-
-            // Handle paste
-            input.addEventListener('paste', (e) => {
-                e.preventDefault();
-                const pastedData = e.clipboardData.getData('text').trim();
-
-                if (/^\d{6}$/.test(pastedData)) {
-                    pastedData.split('').forEach((char, i) => {
-                        if (codeInputs[i]) {
-                            codeInputs[i].value = char;
-                        }
-                    });
-                    codeInputs[5].focus();
-                    updateHiddenCode();
-                }
-            });
-        });
-
-        // ==============================================
-        // D.2: FORM SUBMIT HANDLER
-        // Validates code and updates hidden field before POST
-        // ✅ No fetch() - form posts directly to server
-        // ==============================================
-
-        document.getElementById('verifyForm').addEventListener('submit', function(e) {
-            const code = updateHiddenCode();
-
-            if (code.length !== 6) {
-                e.preventDefault();
-                alert('Please enter all 6 digits');
-                codeInputs[0].focus();
-                return;
-            }
-
-            // Show loading state (form will POST to server)
-            const verifyBtn = document.getElementById('verifyBtn');
-            verifyBtn.disabled = true;
-            verifyBtn.innerHTML = '<span class="spinner"></span>Verifying...';
-        });
-
-        // ==============================================
-        // D.3: COUNTDOWN TIMER (UI ONLY)
-        // Just visual countdown - expiry enforced server-side
-        // ==============================================
-
-        let timeLeft = 600; // 10 minutes
-        const countdownEl = document.getElementById('countdown');
-        const timerEl = document.getElementById('timer');
-
-        const timerInterval = setInterval(() => {
-            timeLeft--;
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                timerEl.classList.add('expired');
-                timerEl.innerHTML = 'Code expired. Please click "Resend Code" below.';
-            }
-        }, 1000);
-
-        // ==============================================
-        // D.4: RESEND FORM LOADING STATE
-        // ✅ No fetch() - form posts directly to server
-        // ==============================================
-
-        document.getElementById('resendForm').addEventListener('submit', function(e) {
-            const resendBtn = document.getElementById('resendBtn');
-            resendBtn.disabled = true;
-            resendBtn.textContent = 'Sending...';
-        });
-    </script>
-</body>
-</html>
+           // Auto-hide notifications after 5 seconds
+           const notifications = document.querySelectorAll('.notification');
+           notifications.forEach(notification => {
+             setTimeout(() => {
+               notification.style.opacity = '0';
+               setTimeout(() => notification.remove(), 300);
+             }, 5000);
+           });
+         });
+       </script>
+     </body>
+     </html>

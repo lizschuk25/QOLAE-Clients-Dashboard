@@ -98,7 +98,12 @@ await server.register(fastifyView, {
 });
 
 // ==============================================
-// LOCATION BLOCK D: AUTHENTICATION DECORATOR
+// LOCATION BLOCK D: CONSTANTS & CONFIGURATION
+// ==============================================
+const SSOT_BASE_URL = process.env.API_BASE_URL || 'https://api.qolae.com';
+
+// ==============================================
+// LOCATION BLOCK E: AUTHENTICATION DECORATOR
 // ==============================================
 /**
  * Decorator to verify client JWT and attach user data
@@ -118,14 +123,220 @@ server.decorate('authenticateClient', async function(request, reply) {
 });
 
 // ==============================================
-// LOCATION BLOCK E: ROUTES REGISTRATION
+// LOCATION BLOCK F: BOOTSTRAP HELPER FUNCTION
+// ==============================================
+/**
+ * Builds client bootstrap data from SSOT API
+ * @param {string} clientPin - Client PIN identifier
+ * @returns {Promise<Object|null>} Bootstrap data or null if error
+ */
+async function buildClientBootstrapData(clientPin) {
+    try {
+        console.log(`📊 [ClientsDashboard] Building bootstrap data for Client PIN: ${clientPin}`);
+
+        // Get stored JWT token from SSOT
+        const tokenResponse = await fetch(`${SSOT_BASE_URL}/auth/clients/getStoredToken?clientPin=${clientPin}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!tokenResponse.ok) {
+            console.warn(`⚠️ [ClientsDashboard] No valid JWT token found for Client PIN: ${clientPin}`);
+            return null;
+        }
+
+        const tokenData = await tokenResponse.json();
+        const { accessToken } = tokenData;
+
+        // Call SSOT bootstrap endpoint with stored JWT token
+        const bootstrapResponse = await fetch(`${SSOT_BASE_URL}/clients/workspace/bootstrap`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (bootstrapResponse.ok) {
+            const bootstrapData = await bootstrapResponse.json();
+            console.log(`✅ [ClientsDashboard] Bootstrap data fetched successfully for ${clientPin}`);
+            return bootstrapData;
+        } else {
+            console.error(`❌ [ClientsDashboard] SSOT bootstrap failed:`, bootstrapResponse.status);
+            return null;
+        }
+
+    } catch (error) {
+        console.error(`❌ [ClientsDashboard] Bootstrap error for ${clientPin}:`, error.message);
+        return null;
+    }
+}
+
+// ==============================================
+// LOCATION BLOCK G: MAIN DASHBOARD ROUTE
+// ==============================================
+/**
+ * Main Clients Dashboard Route
+ * Uses SSOT Bootstrap as SINGLE SOURCE OF TRUTH
+ * No duplicate database queries - all data comes from SSOT
+ */
+server.get('/ClientsDashboard', async (req, reply) => {
+    reply.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    reply.header('Pragma', 'no-cache');
+    reply.header('Expires', '0');
+
+    const { clientPin } = req.query;
+
+    if (!clientPin) {
+        return reply.code(400).send({ error: 'Client PIN required' });
+    }
+
+    try {
+        console.log(`🔍 [ClientsDashboard] Dashboard route called with Client PIN: ${clientPin}`);
+
+        // SINGLE SOURCE OF TRUTH - SSOT Bootstrap only
+        const bootstrapData = await buildClientBootstrapData(clientPin);
+
+        if (!bootstrapData || !bootstrapData.valid) {
+            console.error(`❌ Invalid bootstrap for Client PIN: ${clientPin}`);
+            return reply.code(401).send({ error: 'Invalid session - please login again' });
+        }
+
+        console.log(`✅ Dashboard loading for ${bootstrapData.user.clientName} (${clientPin})`);
+
+        // ==========================================
+        // SERVER-SIDE DATA TRANSFORMATION
+        // Transform bootstrap data into template-ready structures
+        // ==========================================
+
+        // 1. CLIENT object (template expects firstName, name)
+        const clientNameParts = (bootstrapData.user.clientName || 'Client User').split(' ');
+        const client = {
+            clientPin: bootstrapData.user.clientPin,
+            firstName: clientNameParts[0],
+            name: bootstrapData.user.clientName,
+            clientName: bootstrapData.user.clientName,
+            clientEmail: bootstrapData.user.clientEmail,
+            assignedLawyerPin: bootstrapData.user.assignedLawyerPin
+        };
+
+        // 2. SESSION object
+        const session = {
+            lastLogin: bootstrapData.user.lastLogin || 'Never',
+            isFirstLogin: bootstrapData.user.lastLogin === 'First login'
+        };
+
+        // 3. WORKFLOW steps (SERVER builds array based on progress)
+        const workflow = {
+            steps: [
+                {
+                    label: 'Initial Contact',
+                    status: 'completed',
+                    statusLabel: 'Completed'
+                },
+                {
+                    label: 'Consent Form',
+                    status: bootstrapData.progress.consentSigned ? 'completed' : 'active',
+                    statusLabel: bootstrapData.progress.consentSigned ? 'Completed' : 'In Progress'
+                },
+                {
+                    label: 'INA Appointment',
+                    status: bootstrapData.progress.consentSigned ? 'active' : 'pending',
+                    statusLabel: bootstrapData.progress.consentSigned ? 'Ready' : 'Pending'
+                },
+                {
+                    label: 'Assessment',
+                    status: 'pending',
+                    statusLabel: 'Pending'
+                },
+                {
+                    label: 'Final Report',
+                    status: 'pending',
+                    statusLabel: 'Pending'
+                }
+            ]
+        };
+
+        // 4. CARDS (SERVER determines enabled/disabled states)
+        const cards = {
+            consentForm: {
+                signed: bootstrapData.progress.consentSigned || false,
+                status: bootstrapData.progress.consentSigned ? 'completed' : 'active',
+                statusLabel: bootstrapData.progress.consentSigned ? 'Signed' : 'Action Required'
+            },
+            inaAppointment: {
+                scheduled: false, // TODO: Add appointment tracking
+                canSchedule: bootstrapData.progress.consentSigned || false,
+                status: bootstrapData.progress.consentSigned ? 'active' : 'pending',
+                statusLabel: bootstrapData.progress.consentSigned ? 'Ready to Schedule' : 'Awaiting Consent'
+            },
+            documentAccess: {
+                enabled: bootstrapData.features.viewDocuments || false,
+                status: bootstrapData.features.viewDocuments ? 'active' : 'pending',
+                statusLabel: bootstrapData.features.viewDocuments ? 'Available' : 'Locked'
+            },
+            finalReport: {
+                available: false, // TODO: Add report tracking
+                status: 'pending',
+                statusLabel: 'Pending Assessment'
+            }
+        };
+
+        // 5. PROGRESS PERCENTAGE (SERVER calculates)
+        let completedSteps = 0;
+        const totalSteps = workflow.steps.length;
+        workflow.steps.forEach(step => {
+            if (step.status === 'completed') completedSteps++;
+        });
+        const progressPercentage = Math.round((completedSteps / totalSteps) * 100);
+
+        // 6. CSRF TOKEN (SERVER generates)
+        const csrfToken = server.jwt.sign({
+            csrf: true,
+            clientPin: clientPin,
+            timestamp: Date.now()
+        });
+
+        // 7. NOTIFICATIONS (from SSOT bootstrap)
+        const notifications = bootstrapData.notifications || {
+            unreadCount: 0,
+            items: []
+        };
+
+        // ==========================================
+        // RENDER TEMPLATE WITH SERVER-COMPUTED DATA
+        // ==========================================
+        return reply.view('clientsDashboard.ejs', {
+            title: 'QOLAE Clients Dashboard',
+            client,
+            session,
+            workflow,
+            cards,
+            progressPercentage,
+            csrfToken,
+            notifications,
+            progress: bootstrapData.progress,
+            features: bootstrapData.features,
+            caseInfo: bootstrapData.caseInfo,
+            ssotBaseUrl: SSOT_BASE_URL,
+            bootstrapData: JSON.stringify(bootstrapData)
+        });
+
+    } catch (error) {
+        console.error('❌ Error loading dashboard:', error);
+        return reply.code(500).send({ error: 'Failed to load dashboard' });
+    }
+});
+
+// ==============================================
+// LOCATION BLOCK H: ROUTES REGISTRATION
 // ==============================================
 
 // Client Workflow Routes (SSOT compliant - calls API for data)
 await server.register(import('./routes/clientWorkflowRoutes.js'));
 
 // ==============================================
-// LOCATION BLOCK F: ROOT ROUTE
+// LOCATION BLOCK I: ROOT ROUTE
 // ==============================================
 server.get('/', async (request, reply) => {
     // Check if authenticated
@@ -140,7 +351,7 @@ server.get('/', async (request, reply) => {
 });
 
 // ==============================================
-// LOCATION BLOCK G: HEALTH CHECK
+// LOCATION BLOCK J: HEALTH CHECK
 // ==============================================
 server.get('/health', async (request, reply) => {
     return {
@@ -155,7 +366,7 @@ server.get('/health', async (request, reply) => {
 });
 
 // ==============================================
-// LOCATION BLOCK H: ERROR HANDLING
+// LOCATION BLOCK K: ERROR HANDLING
 // ==============================================
 server.setErrorHandler((error, request, reply) => {
     server.log.error(error);
@@ -174,7 +385,7 @@ server.setErrorHandler((error, request, reply) => {
 });
 
 // ==============================================
-// LOCATION BLOCK I: SERVER START
+// LOCATION BLOCK L: SERVER START
 // ==============================================
 const start = async () => {
     try {

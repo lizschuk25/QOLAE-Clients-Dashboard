@@ -1,408 +1,407 @@
 <!-- ==============================================
-     clientsLogin.ejs - Clients Login Page
+     clients-login.ejs - Clients Login Page
      QOLAE Clients Portal - Initial Login & PIN Entry
-     Author: Liz
-     Date: 27th December 2025
-     ✅ BLOCKCHAIN COMPLIANT: Server-side form POST, no fetch()
+     Author: Liz 👑
+     ✅ 100% SERVER-SIDE COMPLIANT (No fetch())
      ============================================== -->
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <!-- ==============================================
-         LOCATION BLOCK A: META & CONFIGURATION
-         ============================================== -->
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Client Login - QOLAE Portal</title>
+     <!DOCTYPE html>
+     <html lang="en">
+     <head>
+       <!-- ==============================================
+            LOCATION BLOCK A: META & CONFIGURATION
+            A.1: Document Metadata
+            ============================================== -->
 
-    <!-- ==============================================
-         LOCATION BLOCK B: STYLES
-         B.1: Reset & Base Styles
-         B.2: QOLAE Logo
-         B.3: Layout Container
-         B.4: Login Card
-         B.5: Form Elements
-         B.6: Buttons
-         B.7: Messages (Error/Success/Help)
-         B.8: Security Notice
-         B.9: Spinner Animation
-         B.10: Responsive Design
-         ============================================== -->
+       <!-- A.1: Document Metadata -->
+       <meta charset="UTF-8">
+       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+       <title><%= title %></title>
 
-    <style>
-        /* ============================================== */
-        /* B.1: RESET & BASE STYLES */
-        /* ============================================== */
+       <!-- ==============================================
+            LOCATION BLOCK B: STYLES
+            B.1: Reset & Base Styles
+            B.2: QOLAE Logo
+            B.3: Layout Container
+            B.4: Login Card
+            B.5: Form Elements
+            B.6: Buttons
+            B.7: Messages (Error/Success/Help)
+            B.8: Responsive Design
+            ============================================== -->
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+       <style>
+         /* ============================================== */
+         /* B.1: RESET & BASE STYLES */
+         /* ============================================== */
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #ffffff;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-            margin: 0;
-        }
+         * {
+           margin: 0;
+           padding: 0;
+           box-sizing: border-box;
+         }
 
-        /* ============================================== */
-        /* B.2: QOLAE LOGO */
-        /* ============================================== */
+         body {
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #ffffff;
+           min-height: 100vh;
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           justify-content: center;
+           padding: 40px 20px;
+           margin: 0;
+         }
 
-        .qolae-logo {
-            margin-bottom: 60px;
-            text-align: center;
-            background: none;
-            border: none;
-            box-shadow: none;
-        }
+         /* ============================================== */
+         /* B.2: QOLAE LOGO */
+         /* ============================================== */
 
-        .qolae-logo img {
-            max-width: 1200px;
-            width: 110%;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-        }
+         .qolae-logo {
+           margin-bottom: 60px;
+           text-align: center;
+           background: none;
+           border: none;
+           box-shadow: none;
+         }
 
-        /* ============================================== */
-        /* B.3: LAYOUT CONTAINER */
-        /* ============================================== */
+         .qolae-logo img {
+           max-width: 1200px;
+           width: 110%;
+           height: auto;
+           display: block;
+           margin: 0 auto;
+         }
 
-        .main-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            max-width: 500px;
-        }
+         /* ============================================== */
+         /* B.3: LAYOUT CONTAINER */
+         /* ============================================== */
 
-        /* ============================================== */
-        /* B.4: LOGIN CARD - BASKERVILLE FONT */
-        /* ============================================== */
+         .main-container {
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           width: 100%;
+           max-width: 500px;
+         }
 
-        .login-card {
-            background: white;
-            border-radius: 16px;
-            padding: 40px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
-            border: 1px solid #e9ecef;
-            font-family: 'Baskerville', 'Helvetica Neue', serif;
-        }
+         /* ============================================== */
+         /* B.4: LOGIN CARD - BASKERVILLE FONT */
+         /* ============================================== */
 
-        .login-title {
-            color: #4facfe;
-            font-size: 1.5rem;
-            font-weight: 600;
-            text-align: center;
-            margin-bottom: 30px;
-            font-family: 'Baskerville', 'Helvetica Neue', serif;
-        }
+         .login-card {
+           background: white;
+           border-radius: 16px;
+           padding: 40px;
+           box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+           width: 100%;
+           max-width: 400px;
+           border: 1px solid #e9ecef;
+           font-family: 'Baskerville', 'Helvetica Neue', serif;
+         }
 
-        /* ============================================== */
-        /* B.5: FORM ELEMENTS */
-        /* ============================================== */
+         .login-title {
+           color: #4facfe;
+           font-size: 1.5rem;
+           font-weight: 600;
+           text-align: center;
+           margin-bottom: 30px;
+           font-family: 'Baskerville', 'Helvetica Neue', serif;
+         }
 
-        .form-group {
-            margin-bottom: 20px;
-        }
+         /* ============================================== */
+         /* B.5: FORM ELEMENTS */
+         /* ============================================== */
 
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
-            font-size: 14px;
-        }
+         .form-group {
+           margin-bottom: 20px;
+         }
 
-        .form-group input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid #4facfe;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
-            font-family: Arial, sans-serif;
-        }
+         .form-group label {
+           display: block;
+           margin-bottom: 8px;
+           color: #333;
+           font-weight: 500;
+           font-size: 14px;
+         }
 
-        .form-group input:focus {
-            outline: none;
-            border-color: #00c9d8;
-            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
-        }
+         .form-group input {
+           width: 100%;
+           padding: 12px 16px;
+           border: 1px solid #4facfe;
+           border-radius: 8px;
+           font-size: 16px;
+           transition: border-color 0.3s ease;
+           font-family: Arial, sans-serif;
+         }
 
-        .form-group input:read-only {
-            background: #f3f4f6;
-            color: #6b7280;
-        }
+         .form-group input:focus {
+           outline: none;
+           border-color: #00c9d8;
+           box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+         }
 
-        .form-hint {
-            color: #6b7280;
-            font-size: 12px;
-            margin-top: 4px;
-        }
+         .form-group input:read-only {
+           background: #f3f4f6;
+           color: #6b7280;
+         }
 
-        /* ============================================== */
-        /* B.6: BUTTONS - TURQUOISE */
-        /* ============================================== */
+         .form-hint {
+           color: #6b7280;
+           font-size: 12px;
+           margin-top: 4px;
+         }
 
-        .login-btn {
-            width: 100%;
-            padding: 14px 20px;
-            background: linear-gradient(135deg, #4facfe, #00f2fe);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: Arial, sans-serif;
-        }
+         /* ============================================== */
+         /* B.6: BUTTONS - TURQUOISE */
+         /* ============================================== */
 
-        .login-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
-        }
+         .login-btn {
+           width: 100%;
+           padding: 14px 20px;
+           background: linear-gradient(135deg, #4facfe, #00f2fe);
+           color: white;
+           border: none;
+           border-radius: 8px;
+           font-size: 16px;
+           font-weight: 600;
+           cursor: pointer;
+           transition: all 0.3s ease;
+           font-family: Arial, sans-serif;
+         }
 
-        .login-btn:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
+         .login-btn:hover {
+           transform: translateY(-2px);
+           box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
+         }
 
-        /* ============================================== */
-        /* B.7: MESSAGES (ERROR/SUCCESS/HELP) */
-        /* ============================================== */
+         .login-btn:disabled {
+           background: #9ca3af;
+           cursor: not-allowed;
+           transform: none;
+           box-shadow: none;
+         }
 
-        .error-message {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            text-align: center;
-        }
+         /* ============================================== */
+         /* B.7: MESSAGES (ERROR/SUCCESS/HELP) */
+         /* ============================================== */
 
-        .success-message {
-            background: #dcfce7;
-            border: 1px solid #bbf7d0;
-            color: #16a34a;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            text-align: center;
-        }
+         .error-message {
+           background: #fef2f2;
+           border: 1px solid #fecaca;
+           color: #dc2626;
+           padding: 12px;
+           border-radius: 8px;
+           margin-bottom: 20px;
+           font-size: 14px;
+           text-align: center;
+           display: none;
+         }
 
-        .pin-help {
-            background: #f0f9ff;
-            border: 1px solid #bae6fd;
-            color: #0369a1;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 13px;
-            text-align: center;
-        }
+         .success-message {
+           background: #dcfce7;
+           border: 1px solid #bbf7d0;
+           color: #16a34a;
+           padding: 12px;
+           border-radius: 8px;
+           margin-bottom: 20px;
+           font-size: 14px;
+           text-align: center;
+           display: none;
+         }
 
-        .pin-help strong {
-            color: #4facfe;
-        }
+         .pin-help {
+           background: #f0f9ff;
+           border: 1px solid #bae6fd;
+           color: #0369a1;
+           padding: 12px;
+           border-radius: 8px;
+           margin-bottom: 20px;
+           font-size: 13px;
+           text-align: center;
+         }
 
-        .pin-help.auto-filled {
-            background: #dcfce7;
-            border-color: #bbf7d0;
-            color: #16a34a;
-        }
+         .pin-help strong {
+           color: #693382;
+         }
 
-        /* ============================================== */
-        /* B.8: SECURITY NOTICE */
-        /* ============================================== */
+         /* ============================================== */
+         /* B.8: RESPONSIVE DESIGN */
+         /* ============================================== */
 
-        .security-notice {
-            margin-top: 24px;
-            padding: 12px;
-            background: #f8f9ff;
-            border-radius: 8px;
-            border-left: 3px solid #4facfe;
-        }
+         @media (max-width: 768px) {
+           .qolae-logo img {
+             max-width: 300px;
+           }
 
-        .security-notice p {
-            color: #6b7280;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+           .login-card {
+             padding: 30px 25px;
+           }
+         }
+       </style>
+     </head>
 
-        /* ============================================== */
-        /* B.9: SPINNER ANIMATION */
-        /* ============================================== */
+     <body>
+       <!-- ==============================================
+            LOCATION BLOCK C: HTML STRUCTURE
+            C.1: QOLAE Logo
+            C.2: Main Container
+            C.3: Login Card
+            C.4: Messages
+            C.5: Login Form
+            ============================================== -->
 
-        .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #ffffff;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 0.8s linear infinite;
-            margin-right: 8px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* ============================================== */
-        /* B.10: RESPONSIVE DESIGN */
-        /* ============================================== */
-
-        @media (max-width: 768px) {
-            .qolae-logo img {
-                max-width: 300px;
-            }
-
-            .login-card {
-                padding: 30px 25px;
-            }
-        }
-    </style>
-</head>
-
-<body>
-    <!-- ==============================================
-         LOCATION BLOCK C: HTML STRUCTURE
-         C.1: QOLAE Logo
-         C.2: Main Container
-         C.3: Login Card
-         C.4: Messages (Server-side rendered)
-         C.5: Login Form (Server-side POST)
-         C.6: Security Notice
-         ============================================== -->
-
-    <!-- C.1: QOLAE Logo at Top -->
-    <div class="qolae-logo">
-        <img src="/centralRepository/public/images/qolaeNewLogo.png"
+      <!-- C.1: QOLAE Logo at Top -->
+      <div class="qolae-logo">
+        <img src="<%= process.env.QOLAE_LOGO_URL || 'https://api.qolae.com/centralRepository/public/images/qolaeNewLogo.png' %>"
              alt="QOLAE Logo"
              onerror="this.style.display='none'">
-    </div>
+      </div>
 
-    <!-- C.2: Main Container -->
-    <div class="main-container">
-        <!-- C.3: Login Card -->
-        <div class="login-card">
-            <h2 class="login-title">QOLAE Clients Login</h2>
+       <!-- C.2: Main Container -->
+       <div class="main-container">
+         <!-- C.3: Login Card -->
+         <div class="login-card">
+           <h2 class="login-title">QOLAE Clients Login</h2>
 
-            <!-- C.4: Server-Side Error/Success Messages -->
-            <% if (typeof error !== 'undefined' && error) { %>
-                <div class="error-message"><%= error %></div>
-            <% } %>
+           <!-- C.4: Error/Success Messages -->
+           <div id="errorMessage" class="error-message"></div>
+           <div id="successMessage" class="success-message"></div>
 
-            <% if (typeof message !== 'undefined' && message) { %>
-                <div class="success-message"><%= message %></div>
-            <% } %>
+           <!-- PIN Help -->
+           <div class="pin-help">
+             <strong>Ready for 2-way Authentication</strong><br>
+             Enter your Client PIN and email to access your workspace
+           </div>
 
-            <!-- PIN Help -->
-            <div class="pin-help <%= (typeof pin !== 'undefined' && pin) ? 'auto-filled' : '' %>" id="pinHelp">
-                <% if (typeof pin !== 'undefined' && pin) { %>
-                    <strong>PIN Auto-filled!</strong><br>
-                    Your PIN has been loaded from your email link. Please enter your email address to continue.
-                <% } else { %>
-                    <strong>Step 1 of 2: Enter Your Credentials</strong><br>
-                    Enter your Client PIN and email to receive a verification code
-                <% } %>
-            </div>
+           <!-- C.5: Login Form -->
+           <!-- ✅ SERVER-SIDE FORM: No fetch(), posts directly to backend -->
+          <form id="loginForm" method="POST" action="/clientsAuth/login">
+             <div class="form-group">
+               <label for="clientPin">Client PIN*</label>
+               <input type="text" name="clientPin" id="clientPin" placeholder="e.g., BML-JD-001701" required>
+             </div>
 
-            <!-- C.5: ✅ SERVER-SIDE FORM: No fetch(), posts directly to backend -->
-            <form id="loginForm" method="POST" action="/clients-auth/login">
-                <div class="form-group">
-                    <label for="pin">Client PIN*</label>
-                    <input type="text"
-                           name="pin"
-                           id="pin"
-                           placeholder="e.g., WWC-LC-123456"
-                           value="<%= typeof pin !== 'undefined' ? pin : '' %>"
-                           <%= (typeof pin !== 'undefined' && pin) ? 'readonly' : '' %>
-                           required>
-                    <p class="form-hint">Find this in your invitation email</p>
-                </div>
+             <div class="form-group">
+               <label for="email">Email Address*</label>
+               <input type="email" name="email" id="email" placeholder="your.email@example.com" required>
+             </div>
 
-                <div class="form-group">
-                    <label for="email">Email Address*</label>
-                    <input type="email"
-                           name="email"
-                           id="email"
-                           placeholder="your@email.com"
-                           required
-                           autofocus>
-                </div>
+             <button type="submit" id="loginButton" class="login-btn">Begin 2-way Authentication</button>
+           </form>
+         </div>
+       </div>
 
-                <button type="submit" id="loginButton" class="login-btn">Request Verification Code</button>
-            </form>
+       <!-- ==============================================
+            LOCATION BLOCK D: JAVASCRIPT
+            ✅ 100% SERVER-SIDE COMPLIANT
+            - NO fetch() calls
+            - NO client-side workflow orchestration
+            - UI enhancements only
+            ============================================== -->
 
-            <!-- C.6: Security Notice -->
-            <div class="security-notice">
-                <p>
-                    <svg width="16" height="16" fill="#4facfe" viewBox="0 0 24 24">
-                        <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z"/>
-                    </svg>
-                    Your session is encrypted and GDPR compliant
-                </p>
-            </div>
-        </div>
-    </div>
+       <script>
+         // ==============================================
+         // D.1: CLIENT PIN PRE-POPULATION FROM URL
+         // ==============================================
 
-    <!-- ==============================================
-         LOCATION BLOCK D: JAVASCRIPT (UI ONLY)
-         ✅ BLOCKCHAIN COMPLIANT: No fetch() calls
-         D.1: Form Submit UI Enhancement (loading state)
-         D.2: Auto-focus email if PIN pre-filled
-         ============================================== -->
+         // Extract Client PIN from URL query parameter and pre-populate the field
+         function prePopulatePinFromUrl() {
+           const urlParams = new URLSearchParams(window.location.search);
+           let clientPinFromUrl = urlParams.get('clientPin');
 
-    <script>
-        // ==============================================
-        // D.1: FORM SUBMIT UI ENHANCEMENT
-        // Shows loading state while server processes
-        // ✅ No fetch() - form posts directly to server
-        // ==============================================
+           // Also check for Client PIN in the URL path (for email links like /login?clientPin=ABC-JD-123456)
+           if (!clientPinFromUrl) {
+             const pathSegments = window.location.pathname.split('/');
+             const pinSegment = pathSegments.find(segment => /^[A-Z]{2,4}-[A-Z]{2}-\d{6}$/.test(segment));
+             if (pinSegment) {
+               clientPinFromUrl = pinSegment;
+             }
+           }
 
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
-            // Don't prevent default - let form submit to server
-            const loginButton = document.getElementById('loginButton');
+           if (clientPinFromUrl) {
+             document.getElementById('clientPin').value = clientPinFromUrl;
+             console.log('Client PIN pre-populated from URL:', clientPinFromUrl);
 
-            // Show loading state
-            loginButton.disabled = true;
-            loginButton.innerHTML = '<span class="spinner"></span>Sending...';
-        });
+             // Show a helpful message if Client PIN was auto-filled
+             const pinHelp = document.querySelector('.pin-help');
+             pinHelp.innerHTML = `<strong>Client PIN Auto-filled!</strong><br>Your Client PIN ${clientPinFromUrl} has been loaded from your email link. Please enter your email address to continue.`;
+             pinHelp.style.background = '#dcfce7';
+             pinHelp.style.borderColor = '#bbf7d0';
+             pinHelp.style.color = '#16a34a';
+           }
+         }
 
-        // ==============================================
-        // D.2: AUTO-FOCUS EMAIL IF PIN PRE-FILLED
-        // ==============================================
+         // Call this function when page loads
+         document.addEventListener('DOMContentLoaded', prePopulatePinFromUrl);
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const pinInput = document.getElementById('pin');
-            const emailInput = document.getElementById('email');
+         // ==============================================
+         // D.1a: ERROR MESSAGE FROM QUERY PARAMS
+         // ==============================================
 
-            // If PIN is pre-filled (readonly), focus on email
-            if (pinInput.hasAttribute('readonly') && pinInput.value) {
-                emailInput.focus();
-            }
-        });
-    </script>
-</body>
-</html>
+         // Display error message if present in URL query params
+         function displayErrorFromUrl() {
+           const urlParams = new URLSearchParams(window.location.search);
+           const errorFromUrl = urlParams.get('error');
+
+           if (errorFromUrl) {
+             showError(decodeURIComponent(errorFromUrl));
+             console.log('Error displayed from URL:', errorFromUrl);
+           }
+         }
+
+         // Call this function when page loads
+         document.addEventListener('DOMContentLoaded', displayErrorFromUrl);
+
+         // ==============================================
+         // D.2: MESSAGE DISPLAY FUNCTIONS
+         // ==============================================
+
+         function showError(message) {
+           const errorDiv = document.getElementById('errorMessage');
+           errorDiv.textContent = message;
+           errorDiv.style.display = 'block';
+           document.getElementById('successMessage').style.display = 'none';
+         }
+
+         function showSuccess(message) {
+           const successDiv = document.getElementById('successMessage');
+           successDiv.textContent = message;
+           successDiv.style.display = 'block';
+           document.getElementById('errorMessage').style.display = 'none';
+         }
+
+         function hideMessages() {
+           document.getElementById('errorMessage').style.display = 'none';
+           document.getElementById('successMessage').style.display = 'none';
+         }
+
+         // ==============================================
+         // D.3: FORM SUBMISSION HANDLER (UI ONLY)
+         // ✅ NO fetch() - Form submits naturally via POST
+         // Server handles validation and redirects
+         // ==============================================
+
+         document.getElementById('loginForm').addEventListener('submit', function(e) {
+           hideMessages();
+
+           const loginButton = document.getElementById('loginButton');
+
+           // Show loading state (UI enhancement only)
+           loginButton.textContent = 'Initiating 2-way Authentication...';
+           loginButton.disabled = true;
+
+           console.log('✅ Form submitting to server via POST - no client-side fetch()');
+           // Form will submit naturally - server handles everything and redirects
+         });
+
+         // ==============================================
+         // D.4: EVENT LISTENERS
+         // ==============================================
+
+         // Clear messages when user starts typing
+         document.getElementById('clientPin').addEventListener('input', hideMessages);
+         document.getElementById('email').addEventListener('input', hideMessages);
+       </script>
+     </body>
+     </html>

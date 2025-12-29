@@ -844,7 +844,7 @@
                         <svg width="16" height="16" fill="#667eea" viewBox="0 0 24 24">
                             <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
                         </svg>
-                        Client ID: <%= client.id %>
+                        Client ID: <%= client.clientPin %>
                     </div>
                 </div>
             </div>
@@ -879,7 +879,7 @@
             <div class="progress-title">Your Workflow Progress</div>
             <div class="progress-steps">
                 <div class="progress-line">
-                    <div class="progress-fill" id="progressFill" style="width: <%= progressPercentage %>%;"></div>
+                    <div class="progress-fill" id="progressFill" data-progress="<%= progressPercentage %>"></div>
                 </div>
                 
                 <% workflow.steps.forEach(function(step, index) { %>
@@ -1059,7 +1059,7 @@
             <!-- CLIENT INFO HEADER -->
             <div style="background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4facfe;">
                 <p style="margin: 5px 0; color: #2d3748;"><strong>Client Name:</strong> <%= client.name %></p>
-                <p style="margin: 5px 0; color: #2d3748;"><strong>Case Reference:</strong> <%= client.id %></p>
+                <p style="margin: 5px 0; color: #2d3748;"><strong>Case Reference:</strong> <%= client.clientPin %></p>
                 <p style="margin: 5px 0; color: #2d3748;"><strong>Date:</strong> <span id="consentDate"></span></p>
             </div>
 
@@ -1396,20 +1396,38 @@
     <div id="toast" class="toast"></div>
 
 <!-- ========================================== -->
-<!-- LOCATION BLOCK 8: JAVASCRIPT -->
+<!-- LOCATION BLOCK 8: JAVASCRIPT DATA -->
+<!-- ========================================== -->
+    <script id="page-data" type="application/json">
+        {
+            "isFirstLogin": <%= session.isFirstLogin ? 'true' : 'false' %>,
+            "clientFirstName": "<%= client.firstName %>"
+        }
+    </script>
+
+<!-- ========================================== -->
+<!-- LOCATION BLOCK 9: JAVASCRIPT -->
 <!-- ========================================== -->
     <script>
         // ===== INITIALIZATION =====
         let canvas, ctx, drawing = false;
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const pageData = JSON.parse(document.getElementById('page-data').textContent);
 
         window.addEventListener('load', function() {
+            // Set progress bar width from data attribute
+            const progressFill = document.getElementById('progressFill');
+            if (progressFill) {
+                const progressPercentage = progressFill.getAttribute('data-progress');
+                progressFill.style.width = progressPercentage + '%';
+            }
+
             // Show welcome toast for first login
-            <% if (session.isFirstLogin) { %>
-            setTimeout(() => {
-                showToast('Welcome to your secure portal, <%= client.firstName %>! 🎉', 'success');
-            }, 1000);
-            <% } %>
+            if (pageData.isFirstLogin) {
+                setTimeout(() => {
+                    showToast('Welcome to your secure portal, ' + pageData.clientFirstName + '! 🎉', 'success');
+                }, 1000);
+            }
 
             // Set consent date
             const now = new Date();

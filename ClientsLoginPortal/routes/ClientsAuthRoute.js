@@ -1,301 +1,629 @@
 // ==============================================
-// CLIENTS LOGIN PORTAL - AUTHENTICATION ROUTES
-// ==============================================
-// Purpose: 2FA authentication for clients (PIN + Email verification)
-// Author: Liz
-// Date: 27th December 2025
-// Architecture: SSOT - Calls api.qolae.com for DB operations
-// BLOCKCHAIN COMPLIANT: Server-side form POST, no client-side fetch()
+// clientsAuthRoute.js - Clients Authentication Routes
+// THE BRIDGE: Clients-specific authentication routes
+// Author: Liz 👑
+// GDPR CRITICAL: All auth attempts must be logged
 // ==============================================
 
 // ==============================================
-// LOCATION BLOCK A: CONFIGURATION
+// LOCATION BLOCK A: IMPORTS & CONFIGURATION
+// A.1: Core Dependencies
+// A.2: API Configuration
+// A.3: Environment Variables & Secrets
 // ==============================================
-const API_URL = process.env.API_URL || 'https://api.qolae.com';
+
+// A.1: Core Dependencies
+import axios from 'axios';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { Pool } from 'pg';
+
+// A.2: API Configuration
+// Configure axios to call the SSOT API
+axios.defaults.baseURL = 'https://api.qolae.com';
+
+// ClientsDashboard baseURL for redirects
+const CLIENTS_DASHBOARD_BASE_URL = 'https://clients.qolae.com';
+
+// A.3: JWT Secret - fail fast if not configured
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  console.error('❌ JWT_SECRET not found in environment variables!');
+  throw new Error('JWT_SECRET environment variable is required');
+})();
 
 // ==============================================
-// LOCATION BLOCK B: ROUTES EXPORT
+// LOCATION BLOCK B: ROUTE DEFINITIONS
+// B.1: Login Route
+// B.2: Email Verification Code Request
+// B.3: 2FA Verification Route
+// B.4: Logout Route
+// B.5: Session Check Route
 // ==============================================
-export default async function clientsAuthRoute(fastify, options) {
 
-    // ==============================================
-    // LOCATION BLOCK 0: BACKWARDS COMPATIBILITY REDIRECT
-    // ==============================================
-    fastify.get('/login', async (request, reply) => {
-        const pin = request.query.pin || '';
-        return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin));
+export default async function clientsAuthRoutes(fastify, opts) {
+  
+  // ==============================================
+  // B.1: CLIENTS LOGIN WITH PIN (FROM EMAIL CLICK)
+  // ==============================================
+  
+  fastify.post('/clientsAuth/login', async (request, reply) => {
+    const { email, clientPin } = request.body;
+    const clientIP = request.ip;
+    
+    // 📝 GDPR Audit Log
+    fastify.log.info({
+      event: 'clientLoginAttempt',
+      clientPin: clientPin,
+      email: email,
+      ip: clientIP,
+      timestamp: new Date().toISOString(),
+      gdprCategory: 'authentication'
     });
-
-    // ==============================================
-    // LOCATION BLOCK 1: LOGIN PAGE (STEP 1 - PIN & EMAIL)
-    // ==============================================
-    fastify.get('/clientsLogin', async (request, reply) => {
-        // Check if already authenticated
-        try {
-            await request.jwtVerify();
-            // Already logged in, redirect to dashboard
-            return reply.redirect(process.env.DASHBOARD_URL || 'https://clients.qolae.com/clientsDashboard');
-        } catch (err) {
-            // Not logged in, show login page
-        }
-
-        return reply.view('clientsLogin.ejs', {
-            pin: request.query.pin || '',
-            error: request.query.error || null,
-            message: request.query.message || null
+    
+    if (!email || !clientPin) {
+      return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin || ''}&error=${encodeURIComponent('Email and Client PIN are required')}`);
+    }
+    
+    try {
+      // ✅ Validate PIN format first (using SSOT)
+      const pinValidation = await axios.post('/api/pin/validate', {
+        pin: clientPin
+      });
+      
+      if (!pinValidation.data.validation.isValid) {
+        fastify.log.warn({
+          event: 'invalidPinFormat',
+          clientPin: clientPin,
+          errors: pinValidation.data.validation.errors
         });
-    });
 
-    // ==============================================
-    // LOCATION BLOCK 2: SERVER-SIDE LOGIN (FORM POST)
-    // BLOCKCHAIN COMPLIANT: No fetch(), server-side redirect
-    // SSOT COMPLIANT: Calls API for DB operations
-    // ==============================================
-    fastify.post('/clients-auth/login', async (request, reply) => {
-        const { pin, email } = request.body;
-        const clientIP = request.ip;
+        return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Invalid Client PIN format')}`);
+      }
+      
+      // ✅ Call SSOT API for authentication
+      const apiResponse = await axios.post('/auth/clients/requestToken', {
+        email,
+        clientPin,
+        source: 'clients-portal',
+        ip: clientIP
+      });
 
-        // Validate input
-        if (!pin || !email) {
-            return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin || '') + '&error=' + encodeURIComponent('Client PIN and email are required'));
-        }
-
-        try {
-            // Call SSOT API for login
-            const apiResponse = await fetch(API_URL + '/api/clientPortal/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin, email, ipAddress: clientIP })
-            });
-
-            const apiData = await apiResponse.json();
-
-            if (!apiData.success) {
-                return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent(apiData.error || 'Login failed'));
-            }
-
-            // Send verification code via email service
-            try {
-                const emailResponse = await fetch(API_URL + '/api/email/send-client-verification', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: email,
-                        code: apiData.verificationCode,
-                        clientName: apiData.clientName
-                    })
-                });
-
-                const emailResult = await emailResponse.json();
-
-                if (!emailResult.success) {
-                    console.error('[ClientsAuth] Failed to send verification email:', emailResult.error);
-                    return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent('Failed to send verification email. Please try again.'));
-                }
-
-            } catch (emailError) {
-                console.error('[ClientsAuth] Email service error:', emailError.message);
-                return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin) + '&error=' + encodeURIComponent('Email service unavailable. Please try again later.'));
-            }
-
-            // SERVER-SIDE REDIRECT to 2FA page
-            const clientFirstName = apiData.clientName.split(' ')[0];
-            return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&codeSent=true');
-
-        } catch (error) {
-            console.error('[ClientsAuth] Error in login:', error.message);
-            return reply.redirect('/clientsLogin?pin=' + encodeURIComponent(pin || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
-        }
-    });
-
-    // ==============================================
-    // LOCATION BLOCK 3: 2FA PAGE (STEP 2 - VERIFICATION CODE)
-    // ==============================================
-    fastify.get('/clients2fa', async (request, reply) => {
-        const { pin, email, name, codeSent, error } = request.query;
-
-        if (!pin || !email) {
-            return reply.redirect('/clientsLogin?error=Please start from the login page');
-        }
-
-        return reply.view('clients2fa.ejs', {
-            pin: pin,
-            email: email,
-            clientName: name || 'Client',
-            codeSent: codeSent === 'true',
-            error: error || null
+      if (apiResponse.data.success) {
+        // 📝 GDPR Audit: Successful login
+        fastify.log.info({
+          event: 'clientLoginSuccess',
+          clientPin: clientPin,
+          consentSigned: apiResponse.data.client.consentSigned,
+          assignedLawyerPin: apiResponse.data.client.assignedLawyerPin
         });
-    });
 
-    // ==============================================
-    // LOCATION BLOCK 4: SERVER-SIDE VERIFY CODE (FORM POST)
-    // BLOCKCHAIN COMPLIANT: No fetch(), server-side redirect
-    // SSOT COMPLIANT: Calls API for DB operations
-    // ==============================================
-    fastify.post('/clients-auth/verify-code', async (request, reply) => {
-        const { pin, email, verificationCode } = request.body;
-        const clientIP = request.ip;
-
-        // Validate input
-        if (!pin || !email || !verificationCode) {
-            return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('Verification code is required'));
-        }
+        // ============================================
+        // REUSE SESSION FROM PIN-ACCESS (NO NEW SESSION)
+        // ============================================
 
         try {
-            // Call SSOT API for verification
-            const apiResponse = await fetch(API_URL + '/api/clientPortal/verifyCode', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin, email, verificationCode, ipAddress: clientIP })
+          // Read existing JWT token from cookie (set by pin-access)
+          const jwtToken = request.cookies?.qolaeClientToken;
+
+          if (!jwtToken) {
+            fastify.log.warn({
+              event: 'loginNoJWT',
+              clientPin: clientPin,
+              gdprCategory: 'authentication'
             });
+            return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Session expired. Please click your PIN link again.')}`);
+          }
 
-            const apiData = await apiResponse.json();
+          // ✅ SSOT: Validate JWT token (replaces 3 direct DB queries)
+          const validationResponse = await axios.post(
+            `${process.env.API_BASE_URL || 'https://api.qolae.com'}/auth/clients/session/validate`,
+            { token: jwtToken }
+          );
 
-            if (!apiData.success) {
-                // Get client name for redirect
-                const clientFirstName = apiData.client?.name?.split(' ')[0] || 'Client';
-                return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent(apiData.error || 'Verification failed'));
-            }
-
-            // Generate JWT token
-            const token = fastify.jwt.sign({
-                pin: apiData.client.pin,
-                name: apiData.client.name,
-                email: apiData.client.email,
-                role: 'client'
+          if (!validationResponse.data.success || !validationResponse.data.valid) {
+            fastify.log.warn({
+              event: 'loginInvalidJWT',
+              clientPin: clientPin,
+              error: validationResponse.data.error || 'Invalid token',
+              gdprCategory: 'authentication'
             });
+            return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Session expired. Please click your PIN link again.')}`);
+          }
 
-            // Set secure cookie
-            reply.setCookie('qolaeClientToken', token, {
-                path: '/',
-                httpOnly: true,
-                secure: true,
-                sameSite: 'strict',
-                maxAge: 5 * 60 * 60, // 5 hours
-                domain: process.env.COOKIE_DOMAIN || '.qolae.com'
+          // Verify PIN matches JWT payload
+          const clientData = validationResponse.data.client;
+          if (clientData.clientPin !== clientPin) {
+            fastify.log.warn({
+              event: 'loginPinMismatch',
+              expectedPin: clientData.clientPin,
+              providedPin: clientPin,
+              gdprCategory: 'authentication'
             });
+            return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('PIN mismatch. Please use your correct PIN link.')}`);
+          }
 
-            // SERVER-SIDE REDIRECT to dashboard
-            const dashboardUrl = process.env.DASHBOARD_URL || 'https://clients.qolae.com/clientsDashboard';
-            return reply.redirect(dashboardUrl);
+          // Log JWT validation success
+          fastify.log.info({
+            event: 'jwtValidated',
+            clientPin: clientPin,
+            expiresAt: validationResponse.data.expiresAt,
+            gdprCategory: 'authentication'
+          });
 
-        } catch (error) {
-            console.error('[ClientsAuth] Error verifying code:', error.message);
-            return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
+          // ✅ NO NEW COOKIE NEEDED - JWT already set by pin-access
+          // ✅ NO SESSION UPDATE NEEDED - JWT is stateless
+          // Redirect to 2FA page
+          return reply.code(302).redirect('/clients2fa');
+
+        } catch (sessionError) {
+          fastify.log.error({
+            event: 'sessionCreationError',
+            clientPin: clientPin,
+            error: sessionError.message,
+            stack: sessionError.stack
+          });
+
+          return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Failed to create session. Please try again.')}`);
         }
+      } else {
+        // 📝 GDPR Audit: Failed login
+        fastify.log.warn({
+          event: 'clientLoginFailed',
+          clientPin: clientPin,
+          error: apiResponse.data.error
+        });
+
+        // ✅ SERVER-SIDE: Redirect back to login with error message
+        return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent(apiResponse.data.error || 'Authentication failed')}`);
+      }
+    } catch (err) {
+      // 📝 GDPR Audit: System error
+      fastify.log.error({
+        event: 'clientLoginError',
+        clientPin: clientPin,
+        error: err.message,
+        stack: err.stack
+      });
+      
+      // Handle API validation errors - redirect with error
+      if (err.response?.data?.error) {
+        return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent(err.response.data.error)}`);
+      }
+
+      // ✅ SERVER-SIDE: Redirect with system error
+      return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin || ''}&error=${encodeURIComponent('Authentication service unavailable. Please try again.')}`);
+    }
+  });
+  
+  // ==============================================
+  // B.2: REQUEST EMAIL VERIFICATION CODE (SESSION-BASED)
+  // ==============================================
+  // ⚠️ REFACTORED: Now uses SSOT endpoint /auth/clients/2fa/request-code
+
+  fastify.post('/clientsAuth/requestEmailCode', async (request, reply) => {
+    const clientIP = request.ip;
+
+    // ✅ STEP 1: Read JWT token from HTTP-only cookie
+    const sessionId = request.cookies?.qolaeClientToken;
+
+    if (!sessionId) {
+      fastify.log.warn({
+        event: 'verificationCodeRequestNoSession',
+        ip: clientIP,
+        gdprCategory: 'authentication'
+      });
+
+      return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent('No active session. Please log in again.'));
+    }
+
+    try {
+      // ✅ STEP 2: Call SSOT endpoint with JWT in Authorization header
+      const ssotResponse = await axios.post(
+        `${process.env.API_BASE_URL || 'https://api.qolae.com'}/auth/clients/2fa/requestCode`,
+        {
+          ipAddress: clientIP,
+          userAgent: request.headers['user-agent']
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${sessionId}`  // ✅ JWT in Authorization header
+          }
+        }
+      );
+
+      const ssotData = ssotResponse.data;
+
+      if (ssotData.success) {
+        // 📝 GDPR Audit: Verification code requested
+        fastify.log.info({
+          event: 'verificationCodeRequested',
+          clientPin: ssotData.client?.clientPin,
+          email: ssotData.client?.email,
+          sessionId: sessionId.substring(0, 10) + '...',
+          gdprCategory: 'authentication'
+        });
+
+        // ✅ SERVER-SIDE: Redirect back to 2FA page with success message
+        return reply.code(302).redirect('/clients2fa?codeSent=true');
+      } else {
+        fastify.log.warn({
+          event: 'verificationCodeRequestApiFailed',
+          error: ssotData.error,
+          gdprCategory: 'authentication'
+        });
+
+        return reply.code(302).redirect('/clients2fa?error=' + encodeURIComponent(ssotData.error || 'Failed to send verification code'));
+      }
+    } catch (err) {
+      // Handle axios error responses from SSOT
+      if (err.response) {
+        const status = err.response.status;
+        const errorData = err.response.data;
+
+        if (status === 401) {
+          fastify.log.warn({
+            event: 'verificationCodeRequestInvalidSession',
+            error: errorData.error,
+            ip: clientIP,
+            gdprCategory: 'authentication'
+          });
+
+          return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent(errorData.error || 'Session invalid. Please log in again.'));
+        }
+      }
+
+      // 📝 GDPR Audit: System error
+      fastify.log.error({
+        event: 'verificationCodeRequestError',
+        error: err.message,
+        stack: err.stack,
+        gdprCategory: 'authentication'
+      });
+
+      return reply.code(302).redirect('/clients2fa?error=' + encodeURIComponent('Verification code service unavailable'));
+    }
+  });
+  
+  // ==============================================
+  // B.3: 2FA VERIFICATION (SESSION-BASED)
+  // ==============================================
+  // ⚠️ REFACTORED: Now uses SSOT endpoint /auth/clients/2fa/verify-code
+
+  fastify.post('/clientsAuth/verify2fa', async (request, reply) => {
+    const { verificationCode } = request.body;
+    const clientIP = request.ip;
+
+    // 📝 GDPR Audit Log
+    fastify.log.info({
+      event: '2faVerificationAttempt',
+      ip: clientIP,
+      timestamp: new Date().toISOString(),
+      gdprCategory: 'authentication'
     });
 
-    // ==============================================
-    // LOCATION BLOCK 5: SERVER-SIDE RESEND CODE (FORM POST)
-    // BLOCKCHAIN COMPLIANT: No fetch(), server-side redirect
-    // SSOT COMPLIANT: Calls API for DB operations
-    // ==============================================
-    fastify.post('/clients-auth/resend-code', async (request, reply) => {
-        const { pin, email } = request.body;
-        const clientIP = request.ip;
+    // ✅ STEP 1: Read JWT token from HTTP-only cookie
+    const sessionId = request.cookies?.qolaeClientToken;
 
-        if (!pin || !email) {
-            return reply.redirect('/clientsLogin?error=Session expired. Please start again.');
+    if (!sessionId) {
+      fastify.log.warn({
+        event: '2faVerificationNoSession',
+        ip: clientIP,
+        gdprCategory: 'authentication'
+      });
+
+      return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent('No active session. Please log in again.'));
+    }
+
+    if (!verificationCode) {
+      return reply.code(302).redirect('/clients2fa?error=' + encodeURIComponent('Verification code required'));
+    }
+
+    try {
+      // ✅ STEP 2: Call SSOT endpoint with JWT in Authorization header
+      const ssotResponse = await axios.post(
+        `${process.env.API_BASE_URL || 'https://api.qolae.com'}/auth/clients/2fa/verifyCode`,
+        {
+          verificationCode: verificationCode,
+          ipAddress: clientIP,
+          userAgent: request.headers['user-agent']
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${sessionId}`  // ✅ JWT in Authorization header
+          }
         }
+      );
 
-        try {
-            // Call SSOT API for resend
-            const apiResponse = await fetch(API_URL + '/api/clientPortal/resendCode', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin, email, ipAddress: clientIP })
-            });
+      const ssotData = ssotResponse.data;
 
-            const apiData = await apiResponse.json();
+      if (ssotData.success) {
+        const clientPin = ssotData.client.clientPin;
+        const clientData = ssotData.client;
 
-            if (!apiData.success) {
-                return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&error=' + encodeURIComponent(apiData.error || 'Failed to resend code'));
-            }
+        // ============================================
+        // STEP 3: USE JWT FROM SSOT RESPONSE
+        // ============================================
+        // ✅ SSOT COMPLIANT: JWT generated & stored by SSOT endpoint
+        // No local generation, no direct database access
 
-            // Send verification code via email service
-            try {
-                const emailResponse = await fetch(API_URL + '/api/email/send-client-verification', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: email,
-                        code: apiData.verificationCode,
-                        clientName: apiData.clientName
-                    })
-                });
+        const jwtToken = ssotData.accessToken;
 
-                const emailResult = await emailResponse.json();
+        console.log(`🔑 JWT token received from SSOT for Client PIN: ${clientPin}`);
 
-                if (!emailResult.success) {
-                    const clientFirstName = apiData.clientName.split(' ')[0];
-                    return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent('Failed to send new code. Please try again.'));
-                }
+        // 📝 GDPR Audit: Successful 2FA
+        fastify.log.info({
+          event: '2faVerificationSuccess',
+          clientPin: clientPin,
+          assignedLawyerPin: clientData.assignedLawyerPin,
+          sessionId: sessionId.substring(0, 10) + '...',
+          jwtReceived: !!jwtToken,
+          gdprCategory: 'authentication'
+        });
 
-            } catch (emailError) {
-                console.error('[ClientsAuth] Email service error:', emailError.message);
-                const clientFirstName = apiData.clientName.split(' ')[0];
-                return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&error=' + encodeURIComponent('Email service unavailable.'));
-            }
+        // ============================================
+        // STEP 4: REDIRECT BASED ON PASSWORD SETUP STATUS
+        // ============================================
+        // (passwordSetupCompleted is returned from SSOT)
 
-            // SERVER-SIDE REDIRECT back to 2FA with success message
-            const clientFirstName = apiData.clientName.split(' ')[0];
-            return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(clientFirstName) + '&codeSent=true');
-
-        } catch (error) {
-            console.error('[ClientsAuth] Error resending code:', error.message);
-            return reply.redirect('/clients2fa?pin=' + encodeURIComponent(pin || '') + '&email=' + encodeURIComponent(email || '') + '&error=' + encodeURIComponent('An error occurred. Please try again.'));
+        if (ssotData.passwordSetupCompleted) {
+          // Returning client - redirect to secure login with password entry
+          return reply.code(302).redirect(`/secureLogin?clientPin=${clientPin}&setupCompleted=true`);
+        } else {
+          // New client - redirect to secure login for password setup
+          return reply.code(302).redirect(`/secureLogin?clientPin=${clientPin}&verified=true`);
         }
+      } else {
+        // 📝 GDPR Audit: Failed 2FA
+        fastify.log.warn({
+          event: '2faVerificationFailed',
+          error: ssotData.error,
+          gdprCategory: 'authentication'
+        });
+
+        return reply.code(302).redirect('/clients2fa?error=' + encodeURIComponent(ssotData.error || '2FA verification failed'));
+      }
+    } catch (err) {
+      // Handle axios error responses from SSOT
+      if (err.response) {
+        const status = err.response.status;
+        const errorData = err.response.data;
+
+        if (status === 401) {
+          fastify.log.warn({
+            event: '2faVerificationInvalidSession',
+            error: errorData.error,
+            ip: clientIP,
+            gdprCategory: 'authentication'
+          });
+
+          // Check if it's a session error or code error
+          if (errorData.redirect) {
+            return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent(errorData.error || 'Session invalid. Please log in again.'));
+          }
+
+          return reply.code(302).redirect('/clients2fa?error=' + encodeURIComponent(errorData.error || 'Invalid verification code'));
+        }
+      }
+
+      // 📝 GDPR Audit: System error
+      fastify.log.error({
+        event: '2faVerificationError',
+        error: err.message,
+        stack: err.stack,
+        gdprCategory: 'authentication'
+      });
+
+      return reply.code(302).redirect('/clients2fa?error=' + encodeURIComponent('2FA verification service unavailable'));
+    }
+  });
+
+  // ==============================================
+  // B.3.5: SECURE LOGIN - PASSWORD SETUP/VERIFY
+  // ==============================================
+  // Handles password form submission after 2FA verification
+  // Routes to either passwordSetup (new) or passwordVerify (returning)
+
+  fastify.post('/clientsAuth/secureLogin', async (request, reply) => {
+    const { password, isNewUser } = request.body;
+    const clientIP = request.ip;
+
+    // 📝 GDPR Audit Log
+    fastify.log.info({
+      event: 'secureLoginAttempt',
+      isNewUser: isNewUser,
+      ip: clientIP,
+      timestamp: new Date().toISOString(),
+      gdprCategory: 'authentication'
     });
 
-    // ==============================================
-    // LOCATION BLOCK 6: LOGOUT (GET - Link based)
-    // BLOCKCHAIN COMPLIANT: Server-side redirect
-    // SSOT COMPLIANT: Calls API for audit logging
-    // ==============================================
-    fastify.get('/clients-auth/logout', async (request, reply) => {
-        const clientIP = request.ip;
+    // ✅ STEP 1: Read JWT token from HTTP-only cookie
+    const jwtToken = request.cookies?.qolaeClientToken;
 
-        try {
-            // Try to get user info for logging
-            let pin = 'unknown';
-            try {
-                await request.jwtVerify();
-                pin = request.user.pin;
-            } catch (e) {
-                // Not authenticated, still clear cookie
-            }
+    if (!jwtToken) {
+      fastify.log.warn({
+        event: 'secureLoginNoSession',
+        ip: clientIP,
+        gdprCategory: 'authentication'
+      });
 
-            // Log logout via API
-            if (pin !== 'unknown') {
-                try {
-                    await fetch(API_URL + '/api/clientPortal/logout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ pin, ipAddress: clientIP })
-                    });
-                } catch (logError) {
-                    console.error('[ClientsAuth] Error logging logout:', logError.message);
-                }
-            }
+      return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent('Session expired. Please click your PIN link again.'));
+    }
 
-            // Clear cookie
-            reply.clearCookie('qolaeClientToken', {
-                path: '/',
-                httpOnly: true,
-                secure: true,
-                sameSite: 'strict',
-                domain: process.env.COOKIE_DOMAIN || '.qolae.com'
-            });
+    if (!password) {
+      return reply.code(302).redirect('/secureLogin?error=' + encodeURIComponent('Password is required'));
+    }
 
-            return reply.redirect('/clientsLogin?message=You have been logged out successfully.');
+    try {
+      // ✅ STEP 2: Determine which SSOT endpoint to call
+      const endpoint = isNewUser === 'true' || isNewUser === true
+        ? '/auth/clients/passwordSetup'
+        : '/auth/clients/passwordVerify';
 
-        } catch (error) {
-            console.error('[ClientsAuth] Error logging out:', error.message);
-            return reply.redirect('/clientsLogin');
+      console.log(`🔐 Calling SSOT ${endpoint}`);
+
+      // ✅ STEP 3: Call SSOT endpoint with JWT in Authorization header
+      const ssotResponse = await axios.post(
+        `${process.env.API_BASE_URL || 'https://api.qolae.com'}${endpoint}`,
+        {
+          password: password,
+          ipAddress: clientIP,
+          userAgent: request.headers['user-agent']
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${jwtToken}`  // ✅ JWT in Authorization header
+          }
         }
+      );
+
+      const ssotData = ssotResponse.data;
+
+      if (ssotData.success) {
+        // ============================================
+        // STEP 4: UPDATE COOKIE WITH NEW JWT (if provided)
+        // ============================================
+        if (ssotData.accessToken) {
+          reply.setCookie('qolaeClientToken', ssotData.accessToken, {
+            path: '/',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 60 * 60 * 24  // 24 hours
+          });
+
+          console.log(`🔑 Updated JWT cookie after password ${isNewUser ? 'setup' : 'verify'}`);
+        }
+
+        // 📝 GDPR Audit: Successful password operation
+        fastify.log.info({
+          event: isNewUser ? 'passwordSetupSuccess' : 'passwordVerifySuccess',
+          clientPin: ssotData.client?.clientPin,
+          gdprCategory: 'authentication'
+        });
+
+        // ✅ STEP 5: Redirect to Dashboard with Client PIN parameter
+        const clientPin = ssotData.client?.clientPin;
+        if (!clientPin) {
+          return reply.code(302).redirect('/secureLogin?error=' + encodeURIComponent('Session data incomplete'));
+        }
+        return reply.code(302).redirect(`/ClientsDashboard?clientPin=${encodeURIComponent(clientPin)}`);
+
+      } else {
+        // 📝 GDPR Audit: Failed password operation
+        fastify.log.warn({
+          event: isNewUser ? 'passwordSetupFailed' : 'passwordVerifyFailed',
+          error: ssotData.error,
+          gdprCategory: 'authentication'
+        });
+
+        return reply.code(302).redirect('/secureLogin?error=' + encodeURIComponent(ssotData.error || 'Password operation failed'));
+      }
+
+    } catch (err) {
+      // Handle axios error responses from SSOT
+      if (err.response) {
+        const status = err.response.status;
+        const errorData = err.response.data;
+
+        if (status === 401) {
+          fastify.log.warn({
+            event: 'secureLoginInvalidSession',
+            error: errorData.error,
+            ip: clientIP,
+            gdprCategory: 'authentication'
+          });
+
+          return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent('Session expired. Please click your PIN link again.'));
+        }
+
+        if (status === 409) {
+          // Password already set up - redirect to verify instead
+          return reply.code(302).redirect('/secureLogin?setupCompleted=true&error=' + encodeURIComponent('Password already set up. Please enter your password.'));
+        }
+      }
+
+      // 📝 GDPR Audit: System error
+      fastify.log.error({
+        event: 'secureLoginError',
+        error: err.message,
+        stack: err.stack,
+        gdprCategory: 'authentication'
+      });
+
+      return reply.code(302).redirect('/secureLogin?error=' + encodeURIComponent('Authentication service unavailable'));
+    }
+  });
+  
+  // ==============================================
+  // B.4: LOGOUT
+  // ==============================================
+
+  fastify.post('/clientsAuth/logout', async (request, reply) => {
+    const jwtToken = request.cookies?.qolaeClientToken;
+    const clientIP = request.ip;
+
+    // 📝 GDPR Audit Log
+    fastify.log.info({
+      event: 'clientLogoutRequest',
+      hasToken: !!jwtToken,
+      ip: clientIP,
+      timestamp: new Date().toISOString(),
+      gdprCategory: 'authentication'
     });
 
-    // Note: Health check route is defined in Clients_server.js to avoid duplication
+    // ✅ JWT LOGOUT: Clear cookie (JWT cannot be deleted server-side as it's stateless)
+    // NOTE: For enhanced security, implement JWT blacklist in future
+    if (jwtToken) {
+      try {
+        // Log successful JWT logout
+        fastify.log.info({
+          event: 'jwtCleared',
+          gdprCategory: 'authentication'
+        });
 
-    console.log('[ClientsAuth] Routes registered (SSOT compliant)');
+      } catch (err) {
+        fastify.log.error({
+          event: 'logoutError',
+          error: err.message
+        });
+      }
+    }
+
+    // ✅ Clear the JWT cookie
+    reply.header('Set-Cookie', 'qolaeClientToken=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');
+
+    return reply.send({
+      success: true,
+      redirect: '/ClientsLogin'
+    });
+  });
+  
+  // ==============================================
+  // B.5: SESSION CHECK
+  // ==============================================
+  
+  fastify.get('/clientsAuth/session', async (request, reply) => {
+    // No session check needed - authentication handled by SSOT
+    return reply.send({
+      success: true,
+      authenticated: !!request.headers.authorization
+    });
+  });
+
+  // ==============================================
+  // B.6 & B.7: REMOVED - DEAD CODE
+  // ==============================================
+  // These routes were not being used by any UI:
+  // - POST /clients-auth/forgot-password
+  // - POST /clients-auth/reset-password-confirm
+  //
+  // Password reset is handled via:
+  // 1. User clicks "Forgot Password?" link
+  // 2. Redirects to /secureLogin?clientPin=...&reset=true
+  // 3. Form submits to POST /clients-auth/secureLogin
+  // 4. Which calls SSOT endpoint /auth/clients/password-reset
+  //
+  // This maintains the security model: ALL access requires 2FA first.
+  // ==============================================
+
 }
