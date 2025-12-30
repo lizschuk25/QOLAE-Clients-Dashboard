@@ -16,11 +16,30 @@
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { Pool } from 'pg';
 
 // A.2: API Configuration
 // Configure axios to call the SSOT API
 axios.defaults.baseURL = 'https://api.qolae.com';
+
+// ✅ Axios response interceptor for consistent status validation
+axios.interceptors.response.use(
+  (response) => {
+    // Validate successful responses have expected structure
+    if (response.status >= 200 && response.status < 300 && response.data === undefined) {
+      console.warn('[SSOT] Response missing data payload');
+    }
+    return response;
+  },
+  (error) => {
+    // Log SSOT errors for debugging
+    console.error('[SSOT] API Error:', {
+      status: error.response?.status,
+      message: error.response?.data?.error || error.message,
+      url: error.config?.url
+    });
+    return Promise.reject(error);
+  }
+);
 
 // ClientsDashboard baseURL for redirects
 const CLIENTS_DASHBOARD_BASE_URL = 'https://clients.qolae.com';
@@ -61,13 +80,14 @@ export default async function clientsAuthRoutes(fastify, opts) {
     });
     
     if (!email || !clientPin) {
-      return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin || ''}&error=${encodeURIComponent('Email and Client PIN are required')}`);
+      return reply.code(302).redirect(`/clientsLogin?clientPin=${clientPin || ''}&error=${encodeURIComponent('Email and Client PIN are required')}`);
     }
     
     try {
-      // ✅ Validate PIN format first (using SSOT)
+      // ✅ Validate Client PIN format first (using SSOT with userType)
       const pinValidation = await axios.post('/api/pin/validate', {
-        pin: clientPin
+        pin: clientPin,
+        userType: 'client'
       });
       
       if (!pinValidation.data.validation.isValid) {
@@ -77,12 +97,12 @@ export default async function clientsAuthRoutes(fastify, opts) {
           errors: pinValidation.data.validation.errors
         });
 
-        return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Invalid Client PIN format')}`);
+        return reply.code(302).redirect(`/clientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Invalid Client PIN format')}`);
       }
       
       // ✅ Call SSOT API for authentication
       const apiResponse = await axios.post('/auth/clients/requestToken', {
-        email,
+        clientEmail: email,
         clientPin,
         source: 'clients-portal',
         ip: clientIP
@@ -111,7 +131,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
               clientPin: clientPin,
               gdprCategory: 'authentication'
             });
-            return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Session expired. Please click your PIN link again.')}`);
+            return reply.code(302).redirect(`/clientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Session expired. Please click your PIN link again.')}`);
           }
 
           // ✅ SSOT: Validate JWT token (replaces 3 direct DB queries)
@@ -127,19 +147,26 @@ export default async function clientsAuthRoutes(fastify, opts) {
               error: validationResponse.data.error || 'Invalid token',
               gdprCategory: 'authentication'
             });
-            return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Session expired. Please click your PIN link again.')}`);
+            return reply.code(302).redirect(`/clientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Session expired. Please click your PIN link again.')}`);
           }
 
           // Verify PIN matches JWT payload
           const clientData = validationResponse.data.client;
           if (clientData.clientPin !== clientPin) {
-            fastify.log.warn({
+            fastify.log.info({
               event: 'loginPinMismatch',
               expectedPin: clientData.clientPin,
               providedPin: clientPin,
+              action: 'clearingOldCookie',
               gdprCategory: 'authentication'
             });
-            return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('PIN mismatch. Please use your correct PIN link.')}`);
+            // Clear old cookie and redirect to get fresh JWT for new PIN
+            reply.clearCookie('qolaeClientToken', {
+              path: '/',
+              domain: process.env.COOKIE_DOMAIN || '.qolae.com'
+            });
+            // Redirect to GET /clientsLogin which will create fresh JWT via SSOT
+            return reply.code(302).redirect(`/clientsLogin?clientPin=${clientPin}`);
           }
 
           // Log JWT validation success
@@ -163,7 +190,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
             stack: sessionError.stack
           });
 
-          return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Failed to create session. Please try again.')}`);
+          return reply.code(302).redirect(`/clientsLogin?clientPin=${clientPin}&error=${encodeURIComponent('Failed to create session. Please try again.')}`);
         }
       } else {
         // 📝 GDPR Audit: Failed login
@@ -174,7 +201,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
         });
 
         // ✅ SERVER-SIDE: Redirect back to login with error message
-        return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent(apiResponse.data.error || 'Authentication failed')}`);
+        return reply.code(302).redirect(`/clientsLogin?clientPin=${clientPin}&error=${encodeURIComponent(apiResponse.data.error || 'Authentication failed')}`);
       }
     } catch (err) {
       // 📝 GDPR Audit: System error
@@ -187,11 +214,11 @@ export default async function clientsAuthRoutes(fastify, opts) {
       
       // Handle API validation errors - redirect with error
       if (err.response?.data?.error) {
-        return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin}&error=${encodeURIComponent(err.response.data.error)}`);
+        return reply.code(302).redirect(`/clientsLogin?clientPin=${clientPin}&error=${encodeURIComponent(err.response.data.error)}`);
       }
 
       // ✅ SERVER-SIDE: Redirect with system error
-      return reply.code(302).redirect(`/ClientsLogin?clientPin=${clientPin || ''}&error=${encodeURIComponent('Authentication service unavailable. Please try again.')}`);
+      return reply.code(302).redirect(`/clientsLogin?clientPin=${clientPin || ''}&error=${encodeURIComponent('Authentication service unavailable. Please try again.')}`);
     }
   });
   
@@ -213,7 +240,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
         gdprCategory: 'authentication'
       });
 
-      return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent('No active session. Please log in again.'));
+      return reply.code(302).redirect('/clientsLogin?error=' + encodeURIComponent('No active session. Please log in again.'));
     }
 
     try {
@@ -268,7 +295,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
             gdprCategory: 'authentication'
           });
 
-          return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent(errorData.error || 'Session invalid. Please log in again.'));
+          return reply.code(302).redirect('/clientsLogin?error=' + encodeURIComponent(errorData.error || 'Session invalid. Please log in again.'));
         }
       }
 
@@ -311,7 +338,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
         gdprCategory: 'authentication'
       });
 
-      return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent('No active session. Please log in again.'));
+      return reply.code(302).redirect('/clientsLogin?error=' + encodeURIComponent('No active session. Please log in again.'));
     }
 
     if (!verificationCode) {
@@ -398,7 +425,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
 
           // Check if it's a session error or code error
           if (errorData.redirect) {
-            return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent(errorData.error || 'Session invalid. Please log in again.'));
+            return reply.code(302).redirect('/clientsLogin?error=' + encodeURIComponent(errorData.error || 'Session invalid. Please log in again.'));
           }
 
           return reply.code(302).redirect('/clients2fa?error=' + encodeURIComponent(errorData.error || 'Invalid verification code'));
@@ -446,7 +473,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
         gdprCategory: 'authentication'
       });
 
-      return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent('Session expired. Please click your PIN link again.'));
+      return reply.code(302).redirect('/clientsLogin?error=' + encodeURIComponent('Session expired. Please click your PIN link again.'));
     }
 
     if (!password) {
@@ -533,7 +560,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
             gdprCategory: 'authentication'
           });
 
-          return reply.code(302).redirect('/ClientsLogin?error=' + encodeURIComponent('Session expired. Please click your PIN link again.'));
+          return reply.code(302).redirect('/clientsLogin?error=' + encodeURIComponent('Session expired. Please click your PIN link again.'));
         }
 
         if (status === 409) {
@@ -594,7 +621,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
 
     return reply.send({
       success: true,
-      redirect: '/ClientsLogin'
+      redirect: '/clientsLogin'
     });
   });
   

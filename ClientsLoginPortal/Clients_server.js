@@ -28,7 +28,6 @@ import formbody from '@fastify/formbody';
 import fastifyView from '@fastify/view';
 import cookie from '@fastify/cookie';
 import ejs from 'ejs';
-import { Pool } from 'pg';
 
 // Import session middleware
 import sessionMiddleware, { createSession, SESSION_CONFIG } from './middleware/sessionManager.js';
@@ -42,15 +41,6 @@ dotenv.config({ path: `${__dirname}/.env` });
 
 // A.3: Server Initialization
 const fastify = Fastify({ logger: true });
-
-// A.4: Global Database Pool (initialized once, reused for all requests)
-console.log('📊 Initializing database pool with CLIENTS_DATABASE_URL...');
-const clientsDb = new Pool({
-  connectionString: process.env.CLIENTS_DATABASE_URL || 'postgresql://clients_user:clients_password@localhost:5432/qolae_clients',
-  max: 20,  // Maximum pool size
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
 
 // ==============================================
 // LOCATION BLOCK B: MIDDLEWARE & PLUGINS
@@ -94,20 +84,19 @@ fastify.register(cookie, {
   parseOptions: {}
 });
 
-// B.4: Static File Serving (GDPR compliant)
-// B.4: Static File Serving
-const staticRoots = [path.join(__dirname, 'public')];
-const staticPrefixes = ['/public/'];
-
-if (process.env.CENTRAL_REPOSITORY_PATH) {
-  staticRoots.push(process.env.CENTRAL_REPOSITORY_PATH);
-  staticPrefixes.push('/centralRepository/');
-}
-
-fastify.register(await import('@fastify/static'), {
-  root: staticRoots,
-  prefix: staticPrefixes
-});
+  // B.4: Static File Serving (GDPR compliant)
+  const staticRoots = [path.join(__dirname, 'public')];
+  const staticPrefixes = ['/public/'];
+  
+  if (process.env.CENTRAL_REPOSITORY_PATH) {
+    staticRoots.push(process.env.CENTRAL_REPOSITORY_PATH);
+    staticPrefixes.push('/centralRepository/');
+  }
+  
+  fastify.register(await import('@fastify/static'), {
+    root: staticRoots,
+    prefix: staticPrefixes
+  });
 
 // B.5: View Engine Setup
 fastify.register(fastifyView, {
@@ -195,8 +184,8 @@ fastify.get('/', async (request, reply) => {
   return reply.redirect('/clientsLogin');
 });
 
-// 1.2a: Clients Login Page - Main Route (capital C for email links) - ENHANCED WITH SECURITY
-fastify.get('/ClientsLogin', async (request, reply) => {
+// 1.2a: Clients Login Page - Main Route with PIN Access via SSOT - ENHANCED WITH SECURITY
+fastify.get('/clientsLogin', async (request, reply) => {
   const { clientPin } = request.query;
   const clientIP = request.ip;
   const userAgent = request.headers['user-agent'];
@@ -316,40 +305,10 @@ fastify.get('/ClientsLogin', async (request, reply) => {
   }
 });
 
-// 1.2b: Alternative lowercase route for consistency
-// ✅ SSOT COMPLIANT - Uses /auth/clients/checkPasswordStatus
-fastify.get('/clientsLogin', async (request, reply) => {
-  const { clientPin } = request.query;
-
-  // If Client PIN is provided, check if client has completed password setup via SSOT
-  if (clientPin) {
-    try {
-      console.log(`🔍 [SSOT] Checking password setup status for Client PIN: ${clientPin}`);
-
-      const ssotResponse = await axios.post(
-        `${process.env.API_BASE_URL || 'https://api.qolae.com'}/auth/clients/checkPasswordStatus`,
-        { clientPin }
-      );
-
-      if (ssotResponse.data.success && ssotResponse.data.passwordSetupCompleted) {
-        console.log(`📧 [SSOT] Client ${clientPin} has completed password setup - continuing with normal 2FA flow`);
-      }
-    } catch (error) {
-      console.error('❌ [SSOT] Error checking password setup status:', error.message);
-    }
-  }
-
-  return reply.view('clientsLogin.ejs', {
-    title: 'QOLAE Clients Login',
-    error: request.query.error || null,
-    success: request.query.success || null
-  });
-});
-
-// 1.2c: Backward compatibility redirect
+// 1.2b: Backward compatibility redirect
 fastify.get('/login', async (request, reply) => {
   const { clientPin } = request.query;
-  const redirectUrl = clientPin ? `/ClientsLogin?clientPin=${clientPin}` : '/clientsLogin';
+  const redirectUrl = clientPin ? `/clientsLogin?clientPin=${clientPin}` : '/clientsLogin';
   return reply.redirect(redirectUrl);
 });
 
@@ -440,7 +399,7 @@ fastify.get('/clients2fa', async (request, reply) => {
 
 // 1.4a: Clients Dashboard (protected route)
 fastify.get('/clientsDashboard', { preHandler: authenticateToken }, async (request, reply) => {
-  return reply.redirect('/ClientsLogin?token=' + encodeURIComponent(request.user.token));
+  return reply.redirect('/clientsLogin?token=' + encodeURIComponent(request.user.token));
 });
 
 // 1.4a: Secure Login (Password Setup)
@@ -460,7 +419,7 @@ fastify.get('/secureLogin', async (req, reply) => {
   // Check for JWT token (set at PIN access stage)
   if (!token) {
     console.log('[SecureLogin] No JWT token found, redirecting to login');
-    return reply.redirect(`/ClientsLogin?clientPin=${clientPin}&error=sessionExpired`);
+    return reply.redirect(`/clientsLogin?clientPin=${clientPin}&error=sessionExpired`);
   }
 
   try {
@@ -479,7 +438,7 @@ fastify.get('/secureLogin', async (req, reply) => {
 
     if (!statusResponse.data.success) {
       console.log('[SecureLogin] SSOT status check failed:', statusResponse.data.error);
-      return reply.redirect(`/ClientsLogin?clientPin=${clientPin}&error=statusCheckFailed`);
+      return reply.redirect(`/clientsLogin?clientPin=${clientPin}&error=statusCheckFailed`);
     }
 
     const client = statusResponse.data.client;
@@ -611,7 +570,7 @@ fastify.get('/secureLogin', async (req, reply) => {
       riskScore: 30
     }).catch(err => console.log('[SecureLogin] Error log failed (non-blocking):', err.message));
 
-    return reply.redirect(`/ClientsLogin?clientPin=${clientPin}&error=secureLoginFailed`);
+    return reply.redirect(`/clientsLogin?clientPin=${clientPin}&error=secureLoginFailed`);
   }
 });
 

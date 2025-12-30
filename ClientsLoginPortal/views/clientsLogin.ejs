@@ -279,7 +279,7 @@
           <form id="loginForm" method="POST" action="/clientsAuth/login">
              <div class="form-group">
                <label for="clientPin">Client PIN*</label>
-               <input type="text" name="clientPin" id="clientPin" placeholder="e.g., BML-JD-001701" required>
+               <input type="text" name="clientPin" id="clientPin" value="<%= clientPin %>" placeholder="e.g., BML-JD-001701" <%= clientPin ? 'readonly' : '' %> required>
              </div>
 
              <div class="form-group">
@@ -308,7 +308,7 @@
          // Extract Client PIN from URL query parameter and pre-populate the field
          function prePopulatePinFromUrl() {
            const urlParams = new URLSearchParams(window.location.search);
-           let clientPinFromUrl = urlParams.get('clientPin');
+           let clientPinFromUrl = urlParams.get('pin') || urlParams.get('clientPin');
 
            // Also check for Client PIN in the URL path (for email links like /login?clientPin=ABC-JD-123456)
            if (!clientPinFromUrl) {
