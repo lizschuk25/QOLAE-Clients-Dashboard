@@ -46,6 +46,8 @@ BOOTSTRAP DATA (passed from server to EJS):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Documents - <%= client.name %></title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- HTMX for server-side modal loading -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
     <style>
         /* ============================================================= */
@@ -71,7 +73,7 @@ BOOTSTRAP DATA (passed from server to EJS):
         .logoHeader {
             text-align: left;
             padding: 15px 20px 10px 20px;
-            max-width: 700px;
+            max-width: 900px;
             margin: 0 auto;
         }
 
@@ -677,6 +679,45 @@ BOOTSTRAP DATA (passed from server to EJS):
                 justify-content: center;
             }
         }
+
+        /* Server-Side Modal Styles (No JavaScript) */
+        .server-modal-overlay {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s;
+        }
+
+        .server-modal-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 900px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .server-modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 2rem;
+            color: #a0aec0;
+            text-decoration: none;
+            transition: color 0.3s;
+            line-height: 1;
+        }
     </style>
 </head>
 <body>
@@ -888,7 +929,15 @@ const formatFileSize = (bytes) => {
                     <% } %>
                     <div class="doc-info"><%= formatFileSize(doc.fileSize) %> &bull; <%= doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-GB') : 'N/A' %></div>
                 </div>
-                <% if (doc.viewUrl) { %>
+                <% if (doc.category === 'consent') { %>
+                <button
+                    hx-get="/consent/viewModal"
+                    hx-target="#consentModalContainer"
+                    hx-swap="innerHTML"
+                    class="doc-action">
+                    <i class="fas fa-eye"></i> View
+                </button>
+                <% } else if (doc.viewUrl) { %>
                 <a href="<%= doc.viewUrl %>" target="_blank" class="doc-action">
                     <i class="fas fa-eye"></i> View
                 </a>
@@ -919,5 +968,7 @@ const formatFileSize = (bytes) => {
 </div><!-- End modal-container -->
 <% } %><!-- End else consentSigned -->
 
+<!-- HTMX Modal Container -->
+<div id="consentModalContainer"></div>
 </body>
 </html>

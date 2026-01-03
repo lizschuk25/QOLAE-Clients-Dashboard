@@ -426,51 +426,75 @@ export default async function clientWorkflowRoutes(fastify, options) {
     });
 
     // ==============================================
-    // LOCATION BLOCK 6: DOWNLOAD SIGNED CONSENT FORM
-    // Fetches signed consent PDF from SSOT centralRepository
+    // LOCATION BLOCK 6: VIEW SIGNED CONSENT FORM
+    // Calls SSOT API endpoint to fetch signed consent PDF
+    // Handles both Standard and POA pathways via database lookup
     // ==============================================
-    fastify.get('/consent/download', {
+    fastify.get('/consent/view', {
         preHandler: authenticateClient
     }, async (request, reply) => {
         const { clientPin } = request.user;
 
         try {
-            console.log('[ClientWorkflow] Consent download requested for:', clientPin);
+            console.log('[ClientWorkflow] View signed consent requested for:', clientPin);
 
-            // Fetch signed consent PDF from SSOT centralRepository
-            const pdfUrl = `${SSOT_BASE_URL}/centralRepository/protected/signedConsent/signedConsent${clientPin}.pdf`;
+            // Get JWT token from cookie to pass to SSOT API
+            const clientToken = request.cookies.qolaeClientToken;
 
-            const pdfResponse = await fetch(pdfUrl, {
+            if (!clientToken) {
+                console.error('[ClientWorkflow] No client token found in cookies');
+                return reply.code(401).send({
+                    success: false,
+                    error: 'Authentication required'
+                });
+            }
+
+            // Call SSOT API endpoint for signed consent PDF
+            const apiUrl = `${SSOT_BASE_URL}/api/clients/consent/view`;
+
+            console.log('[ClientWorkflow] Calling SSOT API:', apiUrl);
+
+            const pdfResponse = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${process.env.API_INTERNAL_KEY}`
+                    'Authorization': `Bearer ${clientToken}`,
+                    'Content-Type': 'application/json'
                 }
             });
 
             if (!pdfResponse.ok) {
-                console.error('[ClientWorkflow] PDF not found at:', pdfUrl, 'Status:', pdfResponse.status);
-                return reply.code(404).send({
+                const errorData = await pdfResponse.json().catch(() => ({}));
+                console.error('[ClientWorkflow] SSOT API error:', pdfResponse.status, errorData);
+
+                if (pdfResponse.status === 400) {
+                    return reply.code(400).send({
+                        success: false,
+                        error: errorData.error || 'Consent form has not been signed yet'
+                    });
+                }
+
+                return reply.code(pdfResponse.status).send({
                     success: false,
-                    error: 'Signed consent form not found. Please sign your consent form first.'
+                    error: errorData.error || 'Signed consent form not found'
                 });
             }
 
             // Get the PDF as a buffer
             const pdfBuffer = await pdfResponse.arrayBuffer();
 
-            // Set headers for PDF download
+            // Set headers for PDF viewing (inline)
             reply.header('Content-Type', 'application/pdf');
             reply.header('Content-Disposition', `inline; filename="SignedConsent_${clientPin}.pdf"`);
             reply.header('Content-Length', pdfBuffer.byteLength);
 
-            console.log('[ClientWorkflow] Serving signed consent PDF for:', clientPin);
+            console.log('[ClientWorkflow] Serving signed consent PDF for:', clientPin, `(${pdfBuffer.byteLength} bytes)`);
             return reply.send(Buffer.from(pdfBuffer));
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error downloading consent:', error.message);
+            console.error('[ClientWorkflow] Error viewing consent:', error.message);
             return reply.code(500).send({
                 success: false,
-                error: 'Failed to download consent form'
+                error: 'Failed to retrieve consent form'
             });
         }
     });
@@ -599,6 +623,33 @@ export default async function clientWorkflowRoutes(fastify, options) {
 
         const loginUrl = process.env.LOGIN_URL || '/clientsLogin';
         return reply.redirect(loginUrl + '?message=You have been logged out successfully.');
+    });
+
+    // ==============================================
+    // LOCATION BLOCK 11: HTMX - VIEW SIGNED CONSENT MODAL
+    // Returns modal partial for HTMX to swap in
+    // ==============================================
+    fastify.get('/consent/viewModal', {
+        preHandler: authenticateClient
+    }, async (request, reply) => {
+        const { clientPin } = request.user;
+        console.log('[ClientWorkflow] HTMX modal requested for:', clientPin);
+
+        return reply.view('partials/viewSignedConsentModal.ejs', {
+            clientPin: clientPin
+        });
+    });
+
+    // ==============================================
+    // LOCATION BLOCK 12: HTMX - CLOSE MODAL
+    // Returns empty string to clear modal container
+    // ==============================================
+    fastify.get('/consent/closeModal', {
+        preHandler: authenticateClient
+    }, async (request, reply) => {
+        console.log('[ClientWorkflow] HTMX modal close requested');
+        reply.type('text/html');
+        return reply.send('');
     });
 
     console.log('[ClientWorkflow] Routes registered (SSOT compliant)');

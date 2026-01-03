@@ -13,6 +13,9 @@
     <title>Client Dashboard - QOLAE Portal</title>
     <meta name="csrf-token" content="<%= csrfToken %>">
 
+    <!-- HTMX for server-side modal loading -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
 <!-- ========================================== -->
 <!-- LOCATION BLOCK 0: ALL CSS STYLES -->
 <!-- ========================================== -->
@@ -1177,12 +1180,18 @@
                         Sign Digitally
                     </a>
                     <% } %>
-                    <button class="btn btn-secondary" onclick="downloadForm()">
+                    <% if (cards.consentForm.signed) { %>
+                    <button
+                        hx-get="/consent/viewModal"
+                        hx-target="#consentModalContainer"
+                        hx-swap="innerHTML"
+                        class="btn btn-secondary">
                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
                         </svg>
-                        <%= cards.consentForm.signed ? 'View Signed Copy' : 'Download Copy' %>
+                        View Signed Consent
                     </button>
+                    <% } %>
                 </div>
             </div>
 
@@ -1679,12 +1688,6 @@
             }
         });
 
-        // ===== DOCUMENT & REPORT FUNCTIONS =====
-        function downloadForm() {
-            showToast('Preparing consent form for download...', 'info');
-            window.location.href = '/consent/download';
-        }
-
         // ===== CLOSE MODAL ON OUTSIDE CLICK =====
         // Close notification panel when clicking outside (modal is server-side controlled)
         window.onclick = function(event) {
@@ -1718,5 +1721,9 @@
             });
         });
     </script>
+
+<!-- HTMX Modal Container -->
+<div id="consentModalContainer"></div>
+
 </body>
 </html>
