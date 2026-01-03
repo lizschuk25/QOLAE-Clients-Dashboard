@@ -80,7 +80,7 @@ fastify.register(formbody);
 
 // B.3.1: Cookie Parser
 fastify.register(cookie, {
-  secret: process.env.COOKIE_SECRET || process.env.JWT_SECRET,
+  secret: process.env.COOKIE_SECRET || process.env.CLIENTS_LOGIN_JWT_SECRET,
   parseOptions: {}
 });
 
@@ -121,7 +121,7 @@ fastify.register(sessionMiddleware);
 // ==============================================
 
 // C.1: JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.CLIENTS_LOGIN_JWT_SECRET;
 
 // C.2: In-memory store for client credentials (replace with database in production)
 const clientCredentials = new Map();
@@ -545,7 +545,7 @@ fastify.get('/secureLogin', async (req, reply) => {
 
       // Client Information
       clientName: client.clientName,
-      clientEmail: client.email,
+      clientEmail: client.clientEmail,
 
       // Security Status
       tokenStatus: userStatus.tokenStatus,

@@ -17,6 +17,15 @@
 <!-- LOCATION BLOCK 0: ALL CSS STYLES -->
 <!-- ========================================== -->
     <style>
+        /* Self-hosted cursive font for typed signatures */
+        @font-face {
+            font-family: 'Dancing Script';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url('/public/fonts/DancingScript-SemiBold.woff2') format('woff2');
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -461,9 +470,8 @@
             background: #3182ce;
         }
 
-        /* Modal Styles */
-        .modal {
-            display: none;
+        /* Server-Side Modal Styles (No JavaScript) */
+        .server-modal-overlay {
             position: fixed;
             z-index: 1000;
             left: 0;
@@ -471,25 +479,38 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0,0,0,0.5);
-            animation: fadeIn 0.3s;
-        }
-
-        .modal.show {
             display: flex;
             align-items: center;
             justify-content: center;
+            animation: fadeIn 0.3s;
         }
 
-        .modal-content {
+        .server-modal-container {
             background: white;
             padding: 40px;
             border-radius: 20px;
-            max-width: 600px;
+            max-width: 900px;
             width: 90%;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             animation: slideIn 0.3s;
             max-height: 90vh;
             overflow-y: auto;
+            position: relative;
+        }
+
+        .server-modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 2rem;
+            color: #a0aec0;
+            text-decoration: none;
+            transition: color 0.3s;
+            line-height: 1;
+        }
+
+        .server-modal-close:hover {
+            color: #2d3748;
         }
 
         .modal-header {
@@ -497,24 +518,12 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            padding-right: 40px;
         }
 
         .modal-title {
             font-size: 1.8rem;
             font-weight: 600;
-            color: #2d3748;
-        }
-
-        .close-btn {
-            font-size: 2rem;
-            color: #a0aec0;
-            cursor: pointer;
-            border: none;
-            background: none;
-            transition: color 0.3s;
-        }
-
-        .close-btn:hover {
             color: #2d3748;
         }
 
@@ -810,6 +819,209 @@
                 width: auto;
             }
         }
+
+        /* Consent Yes/No Radio Pattern */
+        .consent-item {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .consent-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .consent-question {
+            color: #475569;
+            line-height: 1.6;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+        }
+
+        .consent-options {
+            display: flex;
+            gap: 25px;
+            margin-bottom: 8px;
+        }
+
+        .consent-options label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #2d3748;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+
+        .consent-options label:hover {
+            border-color: #4facfe;
+            background: #f0f9ff;
+        }
+
+        .consent-options input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4facfe;
+        }
+
+        .consent-options input[type="radio"]:checked + span {
+            font-weight: 600;
+        }
+
+        .consent-options label:has(input:checked) {
+            border-color: #4facfe;
+            background: #f0f9ff;
+        }
+
+        .consent-options label.selected-no {
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .consent-concern {
+            display: none;
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-left: 4px solid #f59e0b;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            color: #92400e;
+            font-size: 0.9rem;
+        }
+
+        .consent-concern.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        .consent-concern a {
+            color: #d97706;
+            font-weight: 600;
+            text-decoration: underline;
+        }
+
+        .consent-concern a:hover {
+            color: #b45309;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Signature Type Selector */
+        .signature-type-selector {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .signature-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #2d3748;
+        }
+
+        .signature-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #4facfe;
+        }
+
+        .signature-option:hover {
+            color: #4facfe;
+        }
+
+        /* Locked Card Styling (greyed out, non-interactive) */
+        .workflow-card.locked {
+            opacity: 0.6;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .workflow-card.locked::before {
+            content: '🔒';
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            z-index: 1;
+        }
+
+        .workflow-card:not(.locked):hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Completed Card Styling (gold medal badge) */
+        .workflow-card.completed {
+            position: relative;
+            border-color: #10b981;
+        }
+
+        .workflow-card.completed::after {
+            content: '🏅';
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            z-index: 1;
+        }
+
+        /* Success Banner */
+        .success-banner {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .banner-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .banner-icon {
+            font-size: 28px;
+        }
+
+        .banner-text {
+            flex: 1;
+        }
+
+        .banner-text strong {
+            display: block;
+            font-size: 1.1rem;
+            margin-bottom: 2px;
+        }
+
+        .banner-dismiss {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+
+        .banner-dismiss:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -836,17 +1048,20 @@
                         </svg>
                         GDPR Compliant
                     </div>
-                    <a href="/logout" class="logout-btn">
-                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M16,17V14H9V10H16V7L21,12L16,17M14,2A2,2 0 0,1 16,4V6H14V4H5V20H14V18H16V20A2,2 0 0,1 14,22H5A2,2 0 0,1 3,20V4A2,2 0 0,1 5,2H14Z"/>
-                        </svg>
-                        Logout
-                    </a>
+                    <form method="POST" action="/clientsAuth/logout" style="display: inline;">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit" class="logout-btn">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M16,17V14H9V10H16V7L21,12L16,17M14,2A2,2 0 0,1 16,4V6H14V4H5V20H14V18H16V20A2,2 0 0,1 14,22H5A2,2 0 0,1 3,20V4A2,2 0 0,1 5,2H14Z"/>
+                            </svg>
+                            Logout
+                        </button>
+                    </form>
                 </div>
             </div>
             <div class="welcome-section">
                 <div class="welcome-title">Welcome <%= client.firstName %></div>
-                <div class="welcome-subtitle">Access your secure legal workflow portal. Your consent process is in progress and all communications are encrypted.</div>
+                <div class="welcome-subtitle">Welcome to your secure Client Dashboard. Here you can review your consent form, view appointment details and access your documents.</div>
                 <div class="session-info">
                     <div class="session-item">
                         <svg width="16" height="16" fill="#4facfe" viewBox="0 0 24 24">
@@ -914,12 +1129,28 @@
         </div>
 
 <!-- ========================================== -->
+<!-- SUCCESS BANNER (shown after completing a workflow step) -->
+<!-- ========================================== -->
+        <% if (cards.consentForm.signed && !cards.inaAppointment.scheduled) { %>
+        <div id="successBanner" class="success-banner">
+            <div class="banner-content">
+                <span class="banner-icon">🎉</span>
+                <div class="banner-text">
+                    <strong>Congratulations!</strong>
+                    <span id="bannerMessage">Consent Form signed and submitted! INA Appointment is now unlocked.</span>
+                </div>
+                <button class="banner-dismiss" onclick="dismissBanner()">✕</button>
+            </div>
+        </div>
+        <% } %>
+
+<!-- ========================================== -->
 <!-- LOCATION BLOCK 4: WORKFLOW CARDS GRID -->
 <!-- ========================================== -->
         <div class="cards-grid">
 
-            <!-- Consent Form Card -->
-            <div class="workflow-card">
+            <!-- Consent Form Card (always unlocked - first step) -->
+            <div class="workflow-card <%= cards.consentForm.signed ? 'completed' : '' %>" id="cardConsent">
                 <div class="card-header">
                     <div class="card-icon consent">
                         <svg fill="white" viewBox="0 0 24 24">
@@ -939,12 +1170,12 @@
                 </div>
                 <div class="card-buttons">
                     <% if (!cards.consentForm.signed) { %>
-                    <button class="btn btn-primary" onclick="openSignModal()">
+                    <a href="/clientsDashboard?clientPin=<%= client.clientPin %>&showModal=consent" class="btn btn-primary">
                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M9,16.2L4.8,12L3.4,13.4L9,19L21,7L19.6,5.6L9,16.2Z"/>
                         </svg>
                         Sign Digitally
-                    </button>
+                    </a>
                     <% } %>
                     <button class="btn btn-secondary" onclick="downloadForm()">
                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
@@ -955,8 +1186,8 @@
                 </div>
             </div>
 
-            <!-- INA Appointment Card -->
-            <div class="workflow-card">
+            <!-- INA Appointment Card (locked until consent signed) -->
+            <div class="workflow-card <%= cards.inaAppointment.scheduled ? 'completed' : '' %> <%= !cards.consentForm.signed ? 'locked' : '' %>" id="cardInaAppointment">
                 <div class="card-header">
                     <div class="card-icon appointment">
                         <svg fill="white" viewBox="0 0 24 24">
@@ -965,27 +1196,31 @@
                     </div>
                     <div>
                         <div class="card-title">INA Appointment</div>
-                        <div class="status-indicator status-<%= cards.inaAppointment.status === 'completed' ? 'completed' : (cards.inaAppointment.status === 'active' ? 'active' : 'pending') %>">
+                        <div class="status-indicator status-<%= cards.inaAppointment.scheduled ? 'completed' : 'active' %>">
                             <div class="status-dot"></div>
-                            <%= cards.inaAppointment.statusLabel %>
+                            <%= cards.inaAppointment.scheduled ? 'Scheduled' : 'Available' %>
                         </div>
                     </div>
                 </div>
                 <div class="card-description">
-                    Your Independent Neuropsychological Assessment appointment will be scheduled once your consent form is processed. You'll receive confirmation details and preparation instructions.
+                    <% if (cards.consentForm.signed) { %>
+                    Schedule your Independent Needs Assessment with Liz. You'll receive confirmation details and preparation instructions.
+                    <% } else { %>
+                    Schedule your appointment with Liz. If you have questions about the consent form, you can discuss them during your call.
+                    <% } %>
                 </div>
                 <div class="card-buttons">
-                    <button class="btn btn-secondary" id="viewApptBtn" <%= cards.inaAppointment.canSchedule ? '' : 'disabled' %>>
+                    <a href="/inaAppointments" class="btn btn-primary" id="scheduleInaBtn" <%= !cards.consentForm.signed ? 'style="pointer-events:none;opacity:0.5"' : '' %>>
                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M19,3H18V1H16V3H8V1H6V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M19,19H5V8H19V19Z"/>
                         </svg>
                         <%= cards.inaAppointment.scheduled ? 'View Appointment' : 'Schedule Appointment' %>
-                    </button>
+                    </a>
                 </div>
             </div>
 
-            <!-- Document Access Card -->
-            <div class="workflow-card">
+            <!-- Documents Library Card (always available) -->
+            <div class="workflow-card" id="cardDocumentsLibrary">
                 <div class="card-header">
                     <div class="card-icon documents">
                         <svg fill="white" viewBox="0 0 24 24">
@@ -993,28 +1228,28 @@
                         </svg>
                     </div>
                     <div>
-                        <div class="card-title">Document Access</div>
-                        <div class="status-indicator status-<%= cards.documentAccess.status === 'active' ? 'active' : 'pending' %>">
+                        <div class="card-title">Documents Library</div>
+                        <div class="status-indicator status-<%= cards.documentsLibrary.status === 'active' ? 'active' : 'pending' %>">
                             <div class="status-dot"></div>
-                            <%= cards.documentAccess.statusLabel %>
+                            <%= cards.documentsLibrary.statusLabel %>
                         </div>
                     </div>
                 </div>
                 <div class="card-description">
-                    Access your case documents and communications securely. Document access will be unlocked once your signed consent form is received and verified.
+                    Access your case documents and communications securely.
                 </div>
                 <div class="card-buttons">
-                    <button class="btn btn-secondary" id="viewDocsBtn" <%= cards.documentAccess.enabled ? '' : 'disabled' %> onclick="viewDocuments()">
+                    <a href="/documentsLibrary?clientPin=<%= client.clientPin %>" class="btn btn-secondary" id="viewDocsBtn">
                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M15,18V16H6V18H15M18,14V12H6V14H18Z"/>
                         </svg>
                         View Documents
-                    </button>
+                    </a>
                 </div>
             </div>
 
-            <!-- Final Report Card -->
-            <div class="workflow-card">
+            <!-- Final Report Card (always available) -->
+            <div class="workflow-card <%= cards.finalReport.available ? 'completed' : '' %>" id="cardFinalReport">
                 <div class="card-header">
                     <div class="card-icon report">
                         <svg fill="white" viewBox="0 0 24 24">
@@ -1033,12 +1268,12 @@
                     Your final assessment report will be available once the INA is completed. You'll be notified when the report is ready and can discuss findings with your legal team.
                 </div>
                 <div class="card-buttons">
-                    <button class="btn btn-secondary" <%= cards.finalReport.available ? '' : 'disabled' %> onclick="viewReport()">
+                    <a href="/finalReport" class="btn btn-secondary" <%= cards.finalReport.available ? '' : 'style="pointer-events:none;opacity:0.5"' %>>
                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
                         </svg>
                         View Report
-                    </button>
+                    </a>
                 </div>
             </div>
 
@@ -1061,362 +1296,38 @@
             <div class="footer-nav">
                 <a href="#" onclick="showToast('Privacy Policy - Coming soon', 'info'); return false;">Privacy Policy</a>
                 <a href="#" onclick="showToast('Terms of Service - Coming soon', 'info'); return false;">Terms of Service</a>
-                <a href="/logout">Logout</a>
+                <form method="POST" action="/clientsAuth/logout" style="display: inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" style="background: none; border: none; color: #4facfe; font-weight: 500; font-size: 0.9rem; cursor: pointer; padding: 0;">Logout</button>
+                </form>
             </div>
         </div>
     </div>
 
 <!-- ========================================== -->
-<!-- LOCATION BLOCK 6: CONSENT FORM MODAL -->
+<!-- LOCATION BLOCK 6: CONSENT FORM MODAL (SERVER-SIDE CONTROLLED) -->
 <!-- ========================================== -->
-    <div id="signModal" class="modal">
-        <div class="modal-content" style="max-width: 900px;">
-            <div class="modal-header">
-                <div class="modal-title">Consent Form - Client Agreement</div>
-                <button class="close-btn" onclick="closeSignModal()">&times;</button>
-            </div>
-            
-            <!-- CLIENT INFO HEADER -->
-            <div style="background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4facfe;">
-                <p style="margin: 5px 0; color: #2d3748;"><strong>Client Name:</strong> <%= client.name %></p>
-                <p style="margin: 5px 0; color: #2d3748;"><strong>Case Reference:</strong> <%= client.clientPin %></p>
-                <p style="margin: 5px 0; color: #2d3748;"><strong>Date:</strong> <span id="consentDate"></span></p>
-            </div>
-
-            <!-- SERVER-SIDE FORM SUBMISSION -->
-            <form method="POST" action="/api/consent/sign" id="consentForm">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                
-                <div style="max-height: 60vh; overflow-y: auto; padding: 10px;">
-                    
-                    <!-- ============================================ -->
-                    <!-- SECTION 1: Consent for INA -->
-                    <!-- ============================================ -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #8b5cf6;">
-                        <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
-                            📋 Section 1: Consent for Immediate Needs Assessment (INA)
-                        </h4>
-                        
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="inaConsentA" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>1A:</strong> I, <em><%= client.name %></em>, consent to the Immediate Needs Assessment conducted by <em>Liz Chukwu</em>, including the collection of personal and clinical information necessary to assess my injury/injuries for potential rehabilitation and future healthcare needs.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                        
-                        <div>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="inaConsentB" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>1B:</strong> I understand the purpose of this assessment is to develop a tailored set of recommendations for my clinical and rehabilitation needs, as well as to provide a report for my legal team that may be used in a court of law.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                    </div>
-
-                    <!-- ============================================ -->
-                    <!-- SECTION 2: Ongoing Case Management -->
-                    <!-- ============================================ -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #10b981;">
-                        <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
-                            👨‍⚕️ Section 2: Consent for Potential Ongoing Case Management
-                        </h4>
-                        
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="ongoingCaseManagementConsentA" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>2A:</strong> I consent to potential ongoing case management, reassessment, or evaluation of my rehabilitation and healthcare needs as requested by my legal team or deemed necessary by <em>Liz Chukwu</em>/QOLAE.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                        
-                        <div>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="ongoingCaseManagementConsentB" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>2B:</strong> I understand that this consent includes, but is not limited to:
-                                    <ul style="margin: 8px 0 0 20px; padding: 0;">
-                                        <li>Urgent interventions such as medication reviews or consultations with my GP</li>
-                                        <li>Updates or changes to recommendations based on my progress or evolving healthcare needs</li>
-                                        <li>Additional assessments as required to provide further recommendations to my legal team</li>
-                                    </ul>
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                    </div>
-
-                    <!-- ============================================ -->
-                    <!-- SECTION 3: Medical Notes Access -->
-                    <!-- ============================================ -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
-                        <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
-                            🏥 Section 3: Consent for Access to Medical Notes
-                        </h4>
-                        
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="medicalNotesConsentA" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>3A:</strong> I consent to <em>Liz Chukwu</em>/QOLAE accessing my medical notes as provided by my legal representatives for the purposes of completing the Immediate Needs Assessment and any potential ongoing case management, reassessment, or evaluation.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                        
-                        <div>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="medicalNotesConsentB" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>3B:</strong> I understand that this consent is specific to QOLAE's role and does not extend to sharing my medical information with other parties without my explicit written permission.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                    </div>
-
-                    <!-- ============================================ -->
-                    <!-- SECTION 4: Healthcare Collaboration -->
-                    <!-- ============================================ -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #3b82f6;">
-                        <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
-                            👥 Section 4: Consent for Collaboration with Healthcare Practitioners
-                        </h4>
-                        
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="healthcareCollaborationConsentA" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>4A:</strong> I consent to <em>Liz Chukwu</em>/QOLAE collaborating with the following professionals, as necessary, to assess and provide recommendations for my rehabilitation and healthcare needs:
-                                    <ul style="margin: 8px 0 0 20px; padding: 0;">
-                                        <li>Medical Specialists</li>
-                                        <li>Nurse Specialists</li>
-                                        <li>Physiotherapists</li>
-                                        <li>Speech Therapists</li>
-                                        <li>Occupational Therapists</li>
-                                        <li>Other relevant Healthcare Practitioners</li>
-                                    </ul>
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                        
-                        <div>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="healthcareCollaborationConsentB" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>4B:</strong> I understand that such collaboration will be conducted strictly within the scope of my care and rehabilitation needs and for the purpose of providing recommendations to my legal team.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                    </div>
-
-                    <!-- ============================================ -->
-                    <!-- SECTION 5: Documentation (Photographs & Recordings) -->
-                    <!-- ============================================ -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ec4899;">
-                        <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
-                            📷 Section 5: Consent for Documentation (Photographs & Recordings)
-                        </h4>
-                        
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="documentationConsentA" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>5A:</strong> I consent to the use of photographs, audio recordings, or written documentation taken during the INA, potential reassessments, or evaluations as part of the assessment process.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                        
-                        <div>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="documentationConsentB" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>5B:</strong> I understand that these materials will be securely stored by QOLAE and used solely for assessment purposes, including the preparation of reports that may be submitted to my legal team or in a court of law.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                    </div>
-
-                    <!-- ============================================ -->
-                    <!-- SECTION 6: Reports and Reviews -->
-                    <!-- ============================================ -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #6366f1;">
-                        <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
-                            📄 Section 6: Consent for Reports and Reviews
-                        </h4>
-                        
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="reportsConsentA" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>6A:</strong> I understand that QOLAE will prepare a report following INA visit and any necessary reassessments.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                        
-                        <div>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="reportsConsentB" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>6B:</strong> I consent to QOLAE sharing this report with my legal team. I acknowledge that the report may include recommendations for overall holistic Rehabilitation and Care.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                    </div>
-
-                    <!-- ============================================ -->
-                    <!-- SECTION 7: Legal Reporting Consent -->
-                    <!-- ============================================ -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #14b8a6;">
-                        <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
-                            ⚖️ Section 7: Legal Reporting Consent
-                        </h4>
-                        
-                        <div>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="legalReportingConsent" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>7:</strong> Information gathered during assessments will be used to create reports for my legal team, which will/may be presented in a court of law as/if required. I consent to the use of the INA report in legal proceedings, including submission to lawyers and a court of law, as required.
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                    </div>
-
-                    <!-- ============================================ -->
-                    <!-- SECTION 8: Data Protection and Confidentiality -->
-                    <!-- ============================================ -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #8b5cf6;">
-                        <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
-                            🛡️ Section 8: Data Protection and Confidentiality
-                        </h4>
-                        
-                        <div>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="dataProtectionConsent" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>8:</strong> I understand and acknowledge that:
-                                    <ul style="margin: 8px 0 0 20px; padding: 0;">
-                                        <li>QOLAE will handle all personal data in compliance with GDPR and the Data Protection Act 2018</li>
-                                        <li>Information shared will only be used for the purposes stated above</li>
-                                        <li>My data will not be shared with third parties without my explicit written consent, except as required by law</li>
-                                    </ul>
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                    </div>
-
-                    <!-- ============================================ -->
-                    <!-- SECTION 9: Right to Withdraw Consent -->
-                    <!-- ============================================ -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f97316;">
-                        <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
-                            🔄 Section 9: Right to Withdraw Consent
-                        </h4>
-                        
-                        <div>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="withdrawalRightsConsent" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>9:</strong> I understand that:
-                                    <ul style="margin: 8px 0 0 20px; padding: 0;">
-                                        <li>I may withdraw my consent at any time by notifying QOLAE in writing</li>
-                                        <li>Withdrawal of consent will not affect any assessments or services provided prior to the withdrawal</li>
-                                    </ul>
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                    </div>
-
-                    <!-- ============================================ -->
-                    <!-- SECTION 10: Declaration -->
-                    <!-- ============================================ -->
-                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #10b981;">
-                        <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
-                            ✅ Section 10: Declaration
-                        </h4>
-                        
-                        <div>
-                            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" name="declarationConsent" value="true" style="margin-top: 4px;" required>
-                                <span style="color: #475569; line-height: 1.6; font-size: 0.95rem;">
-                                    <strong>10:</strong> By signing below, I confirm that I:
-                                    <ul style="margin: 8px 0 0 20px; padding: 0;">
-                                        <li>Have read and understood this consent form</li>
-                                        <li>Consent to the activities outlined in this consent form</li>
-                                        <li>Will have the opportunity to ask questions about this consent form at any time</li>
-                                    </ul>
-                                </span>
-                            </label>
-                            <!-- TODO: Add clarifying text when "No" is selected - Design needed for "Why are you declining?" message -->
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- ============================================ -->
-                <!-- SIGNATURE SECTION -->
-                <!-- ============================================ -->
-                <div style="background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.1)); padding: 25px; border-radius: 12px; margin-top: 20px; border: 2px solid #4facfe;">
-                    <h4 style="color: #1e293b; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; font-size: 1rem;">
-                        ✍️ Your Signature
-                    </h4>
-                    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 15px;">
-                        Sign below to confirm you have read and agree to all sections of this consent form.
-                    </p>
-                    
-                    <div style="background: white; border: 2px dashed #4facfe; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                        <canvas id="signatureCanvas" width="560" height="150" style="width: 100%; border-radius: 4px; background: #fafafa; cursor: crosshair;"></canvas>
-                        <input type="hidden" name="clientSignatureData" id="clientSignatureInput" value="">
-                    </div>
-                    
-                    <div style="display: flex; gap: 10px;">
-                        <button type="button" class="btn btn-secondary" onclick="clearSignature()">
-                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
-                            </svg>
-                            Clear Signature
-                        </button>
-                    </div>
-                </div>
-
-                <!-- FORM ACTIONS -->
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">
-                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
-                        </svg>
-                        Submit Consent Form
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="closeSignModal()">
-                        Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
+<% if (showModal === 'consent') { %>
+<div class="server-modal-overlay">
+    <div class="server-modal-container">
+        <a href="/clientsDashboard?clientPin=<%= client.clientPin %>" class="server-modal-close" title="Close">&times;</a>
+        <%- include('partials/consentFormModal', {
+            client: client,
+            csrfToken: csrfToken,
+            showPreview: showPreview
+        }) %>
     </div>
+</div>
+<% } %>
+<!-- END LOCATION BLOCK 6: CONSENT FORM MODAL -->
 
 <!-- ========================================== -->
-<!-- LOCATION BLOCK 7: TOAST NOTIFICATION -->
+<!-- LOCATION BLOCK 8: TOAST NOTIFICATION -->
 <!-- ========================================== -->
     <div id="toast" class="toast"></div>
 
 <!-- ========================================== -->
-<!-- LOCATION BLOCK 8: JAVASCRIPT DATA -->
+<!-- LOCATION BLOCK 9: JAVASCRIPT DATA -->
 <!-- ========================================== -->
     <script id="page-data" type="application/json">
         {
@@ -1426,7 +1337,7 @@
     </script>
 
 <!-- ========================================== -->
-<!-- LOCATION BLOCK 9: JAVASCRIPT -->
+<!-- LOCATION BLOCK 10: JAVASCRIPT -->
 <!-- ========================================== -->
     <script>
         // ===== INITIALIZATION =====
@@ -1457,6 +1368,65 @@
                 year: 'numeric'
             });
         });
+
+        // ===== CONSENT FORM YES/NO HANDLING =====
+        function initConsentFormHandlers() {
+            const consentItems = document.querySelectorAll('.consent-item');
+            const previewBtn = document.querySelector('button[formaction="/api/consent/preview"]');
+
+            consentItems.forEach(item => {
+                const radios = item.querySelectorAll('input[type="radio"]');
+                const concernDiv = item.querySelector('.consent-concern');
+
+                radios.forEach(radio => {
+                    radio.addEventListener('change', function() {
+                        // Show/hide concern message based on selection
+                        if (this.value === 'no') {
+                            concernDiv.classList.add('show');
+                            // Style the No label
+                            this.closest('label').classList.add('selected-no');
+                        } else {
+                            concernDiv.classList.remove('show');
+                            // Remove No styling from sibling
+                            const noLabel = item.querySelector('input[value="no"]').closest('label');
+                            noLabel.classList.remove('selected-no');
+                        }
+
+                        // Update Preview button state
+                        updatePreviewButtonState();
+                    });
+                });
+            });
+
+            // Handle "Book a Call" links - redirect to dashboard with INA card highlight
+            document.querySelectorAll('.book-call-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // Server-side redirect to close modal and highlight INA card
+                    window.location.href = '/clientsDashboard?clientPin=<%= client.clientPin %>&highlightCard=inaAppointment';
+                });
+            });
+        }
+
+        function updatePreviewButtonState() {
+            const previewBtn = document.querySelector('button[formaction="/api/consent/preview"]');
+            if (!previewBtn) return;
+
+            // Check if any "No" is selected
+            const anyNoSelected = document.querySelector('.consent-item input[type="radio"][value="no"]:checked');
+
+            if (anyNoSelected) {
+                previewBtn.disabled = true;
+                previewBtn.style.opacity = '0.5';
+                previewBtn.style.cursor = 'not-allowed';
+                previewBtn.title = 'Please address all concerns before previewing';
+            } else {
+                previewBtn.disabled = false;
+                previewBtn.style.opacity = '1';
+                previewBtn.style.cursor = 'pointer';
+                previewBtn.title = '';
+            }
+        }
 
         // ===== NOTIFICATION PANEL =====
         function toggleNotifications() {
@@ -1521,17 +1491,24 @@
             }, 4000);
         }
 
-        // ===== SIGNATURE MODAL =====
-        function openSignModal() {
-            document.getElementById('signModal').classList.add('show');
-            setTimeout(() => {
-                initCanvas();
-            }, 100);
+        // ===== SUCCESS BANNER =====
+        function dismissBanner() {
+            const banner = document.getElementById('successBanner');
+            if (banner) {
+                banner.style.display = 'none';
+            }
         }
 
-        function closeSignModal() {
-            document.getElementById('signModal').classList.remove('show');
-        }
+        // ===== SIGNATURE CANVAS (Server-Side Modal - Canvas still needed) =====
+        // Modal open/close is now server-side via URL params
+        // Initialize canvas when modal is rendered by server
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('signatureCanvas');
+            if (canvas) {
+                initCanvas();
+                initConsentFormHandlers();
+            }
+        });
 
         function initCanvas() {
             canvas = document.getElementById('signatureCanvas');
@@ -1568,13 +1545,14 @@
         }
 
         function startDrawing(e) {
+            if (!drawingEnabled) return;
             drawing = true;
             ctx.beginPath();
             ctx.moveTo(e.offsetX, e.offsetY);
         }
 
         function draw(e) {
-            if (!drawing) return;
+            if (!drawing || !drawingEnabled) return;
             ctx.lineTo(e.offsetX, e.offsetY);
             ctx.stroke();
         }
@@ -1584,6 +1562,7 @@
         }
 
         function handleTouch(e) {
+            if (!drawingEnabled) return;
             e.preventDefault();
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
@@ -1604,6 +1583,70 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             document.getElementById('clientSignatureInput').value = '';
             showToast('Signature cleared', 'info');
+        }
+
+        // ===== SIGNATURE TYPE TOGGLE =====
+        let drawingEnabled = true;
+
+        // Toggle between draw and typed signature modes
+        function toggleSignatureType(type) {
+            const canvas = document.getElementById('signatureCanvas');
+            const generateBtn = document.getElementById('generateTypedSignatureBtn');
+
+            // Clear canvas when switching
+            clearSignature();
+
+            if (type === 'typed') {
+                // Show generate button, disable drawing
+                generateBtn.style.display = 'inline-flex';
+                canvas.style.cursor = 'default';
+                disableCanvasDrawing();
+            } else {
+                // Hide generate button, enable drawing
+                generateBtn.style.display = 'none';
+                canvas.style.cursor = 'crosshair';
+                enableCanvasDrawing();
+            }
+        }
+
+        // Disable canvas drawing events
+        function disableCanvasDrawing() {
+            drawingEnabled = false;
+        }
+
+        // Enable canvas drawing events
+        function enableCanvasDrawing() {
+            drawingEnabled = true;
+        }
+
+        // Generate typed signature on canvas
+        function generateTypedSignature() {
+            const canvas = document.getElementById('signatureCanvas');
+            const ctx = canvas.getContext('2d');
+            const clientName = '<%= client.name %>';
+
+            // Clear canvas first
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Set signature-style font (self-hosted Dancing Script)
+            ctx.font = '600 36px "Dancing Script", cursive';
+            ctx.fillStyle = '#1a365d';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Draw the name as signature
+            ctx.fillText(clientName, canvas.width / 2, canvas.height / 2);
+
+            // Update hidden input with base64 data
+            updateSignatureData();
+            showToast('Typed signature generated', 'success');
+        }
+
+        // Update hidden input with canvas data
+        function updateSignatureData() {
+            const canvas = document.getElementById('signatureCanvas');
+            const signatureInput = document.getElementById('clientSignatureInput');
+            signatureInput.value = canvas.toDataURL('image/png');
         }
 
         // FORM SUBMISSION HANDLER (SERVER-SIDE)
@@ -1642,26 +1685,11 @@
             window.location.href = '/consent/download';
         }
 
-        function viewDocuments() {
-            showToast('Opening document vault...', 'info');
-            window.location.href = '/documents';
-        }
-
-        function viewReport() {
-            showToast('Opening final report...', 'info');
-            window.location.href = '/report/view';
-        }
-
         // ===== CLOSE MODAL ON OUTSIDE CLICK =====
+        // Close notification panel when clicking outside (modal is server-side controlled)
         window.onclick = function(event) {
-            const modal = document.getElementById('signModal');
             const notifPanel = document.getElementById('notificationPanel');
-
-            if (event.target === modal) {
-                closeSignModal();
-            }
-
-            if (!event.target.closest('.notification-panel') && !event.target.closest('.notification-bell')) {
+            if (notifPanel && !event.target.closest('.notification-panel') && !event.target.closest('.notification-bell')) {
                 notifPanel.classList.remove('show');
             }
         };

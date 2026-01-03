@@ -1,0 +1,543 @@
+<%# ========================================== %>
+<%# CONSENT FORM MODAL PARTIAL %>
+<%# Server-Side Controlled - No JavaScript Modal Logic %>
+<%# Parameters: client, csrfToken, showPreview %>
+<%# ========================================== %>
+
+<!-- QOLAE Logo Header (consistent branding) -->
+<div style="text-align: left; padding: 15px 20px 10px 20px;">
+    <img src="https://api.qolae.com/centralRepository/public/images/qolaeNewLogo.png" alt="QOLAE" style="height: 120px; width: auto;">
+</div>
+
+<div class="modal-header">
+    <div class="modal-title">Consent Form - Client Agreement</div>
+</div>
+
+<!-- CLIENT INFO HEADER -->
+<div style="background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #4facfe;">
+    <p style="margin: 5px 0; color: #2d3748;"><strong>Client Name:</strong> <%= client.name %></p>
+    <p style="margin: 5px 0; color: #2d3748;"><strong>Case Reference:</strong> <%= client.clientPin %></p>
+    <p style="margin: 5px 0; color: #2d3748;"><strong>Date:</strong> <span id="consentDate"></span></p>
+</div>
+
+<!-- SERVER-SIDE FORM SUBMISSION (No iframe target - server redirects) -->
+<% if (!showPreview) { %>
+<form method="POST" action="/api/consent/preview" id="consentForm">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <div style="max-height: 60vh; overflow-y: auto; padding: 10px;">
+
+        <!-- ============================================ -->
+        <!-- SECTION 1: Consent for INA -->
+        <!-- ============================================ -->
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #8b5cf6;">
+            <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
+                Section 1: Consent for Immediate Needs Assessment (INA)
+            </h4>
+
+            <div class="consent-item" data-consent="inaConsentA">
+                <div class="consent-question">
+                    <strong>1A:</strong> I, <em><%= client.name %></em>, consent to the Immediate Needs Assessment conducted by <em>Liz Chukwu</em>, including the collection of personal and clinical information necessary to assess my injury/injuries for potential rehabilitation and future healthcare needs.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="inaConsentA" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="inaConsentA" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+
+            <div class="consent-item" data-consent="inaConsentB">
+                <div class="consent-question">
+                    <strong>1B:</strong> I understand the purpose of this assessment is to develop a tailored set of recommendations for my clinical and rehabilitation needs, as well as to provide a report for my legal team that may be used in a court of law.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="inaConsentB" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="inaConsentB" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SECTION 2: Ongoing Case Management -->
+        <!-- ============================================ -->
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #10b981;">
+            <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
+                Section 2: Consent for Potential Ongoing Case Management
+            </h4>
+
+            <div class="consent-item" data-consent="ongoingCaseManagementConsentA">
+                <div class="consent-question">
+                    <strong>2A:</strong> I consent to potential ongoing case management, reassessment, or evaluation of my rehabilitation and healthcare needs as requested by my legal team or deemed necessary by <em>Liz Chukwu</em>/QOLAE.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="ongoingCaseManagementConsentA" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="ongoingCaseManagementConsentA" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+
+            <div class="consent-item" data-consent="ongoingCaseManagementConsentB">
+                <div class="consent-question">
+                    <strong>2B:</strong> I understand that this consent includes, but is not limited to:
+                    <ul style="margin: 8px 0 0 20px; padding: 0;">
+                        <li>Urgent interventions such as medication reviews or consultations with my GP</li>
+                        <li>Updates or changes to recommendations based on my progress or evolving healthcare needs</li>
+                        <li>Additional assessments as required to provide further recommendations to my legal team</li>
+                    </ul>
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="ongoingCaseManagementConsentB" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="ongoingCaseManagementConsentB" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SECTION 3: Medical Notes Access -->
+        <!-- ============================================ -->
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
+            <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
+                Section 3: Consent for Access to Medical Notes
+            </h4>
+
+            <div class="consent-item" data-consent="medicalNotesConsentA">
+                <div class="consent-question">
+                    <strong>3A:</strong> I consent to <em>Liz Chukwu</em>/QOLAE accessing my medical notes as provided by my legal representatives for the purposes of completing the Immediate Needs Assessment and any potential ongoing case management, reassessment, or evaluation.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="medicalNotesConsentA" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="medicalNotesConsentA" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+
+            <div class="consent-item" data-consent="medicalNotesConsentB">
+                <div class="consent-question">
+                    <strong>3B:</strong> I understand that this consent is specific to QOLAE's role and does not extend to sharing my medical information with other parties without my explicit written permission.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="medicalNotesConsentB" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="medicalNotesConsentB" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SECTION 4: Healthcare Collaboration -->
+        <!-- ============================================ -->
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #3b82f6;">
+            <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
+                Section 4: Consent for Collaboration with Healthcare Practitioners
+            </h4>
+
+            <div class="consent-item" data-consent="healthcareCollaborationConsentA">
+                <div class="consent-question">
+                    <strong>4A:</strong> I consent to <em>Liz Chukwu</em>/QOLAE collaborating with the following professionals, as necessary, to assess and provide recommendations for my rehabilitation and healthcare needs:
+                    <ul style="margin: 8px 0 0 20px; padding: 0;">
+                        <li>Medical Specialists</li>
+                        <li>Nurse Specialists</li>
+                        <li>Physiotherapists</li>
+                        <li>Speech Therapists</li>
+                        <li>Occupational Therapists</li>
+                        <li>Other relevant Healthcare Practitioners</li>
+                    </ul>
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="healthcareCollaborationConsentA" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="healthcareCollaborationConsentA" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+
+            <div class="consent-item" data-consent="healthcareCollaborationConsentB">
+                <div class="consent-question">
+                    <strong>4B:</strong> I understand that such collaboration will be conducted strictly within the scope of my care and rehabilitation needs and for the purpose of providing recommendations to my legal team.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="healthcareCollaborationConsentB" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="healthcareCollaborationConsentB" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SECTION 5: Documentation (Photographs & Recordings) -->
+        <!-- ============================================ -->
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ec4899;">
+            <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
+                Section 5: Consent for Documentation (Photographs & Recordings)
+            </h4>
+
+            <div class="consent-item" data-consent="documentationConsentA">
+                <div class="consent-question">
+                    <strong>5A:</strong> I consent to the use of photographs, audio recordings, or written documentation taken during the INA, potential reassessments, or evaluations as part of the assessment process.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="documentationConsentA" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="documentationConsentA" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+
+            <div class="consent-item" data-consent="documentationConsentB">
+                <div class="consent-question">
+                    <strong>5B:</strong> I understand that these materials will be securely stored by QOLAE and used solely for assessment purposes, including the preparation of reports that may be submitted to my legal team or in a court of law.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="documentationConsentB" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="documentationConsentB" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SECTION 6: Reports and Reviews -->
+        <!-- ============================================ -->
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #6366f1;">
+            <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
+                Section 6: Consent for Reports and Reviews
+            </h4>
+
+            <div class="consent-item" data-consent="reportsConsentA">
+                <div class="consent-question">
+                    <strong>6A:</strong> I understand that QOLAE will prepare a report following INA visit and any necessary reassessments.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="reportsConsentA" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="reportsConsentA" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+
+            <div class="consent-item" data-consent="reportsConsentB">
+                <div class="consent-question">
+                    <strong>6B:</strong> I consent to QOLAE sharing this report with my legal team. I acknowledge that the report may include recommendations for overall holistic Rehabilitation and Care.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="reportsConsentB" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="reportsConsentB" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SECTION 7: Legal Reporting Consent -->
+        <!-- ============================================ -->
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #14b8a6;">
+            <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
+                Section 7: Legal Reporting Consent
+            </h4>
+
+            <div class="consent-item" data-consent="legalReportingConsent">
+                <div class="consent-question">
+                    <strong>7:</strong> Information gathered during assessments will be used to create reports for my legal team, which will/may be presented in a court of law as/if required. I consent to the use of the INA report in legal proceedings, including submission to lawyers and a court of law, as required.
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="legalReportingConsent" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="legalReportingConsent" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SECTION 8: Data Protection and Confidentiality -->
+        <!-- ============================================ -->
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #8b5cf6;">
+            <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
+                Section 8: Data Protection and Confidentiality
+            </h4>
+
+            <div class="consent-item" data-consent="dataProtectionConsent">
+                <div class="consent-question">
+                    <strong>8:</strong> I understand and acknowledge that:
+                    <ul style="margin: 8px 0 0 20px; padding: 0;">
+                        <li>QOLAE will handle all personal data in compliance with GDPR and the Data Protection Act 2018</li>
+                        <li>Information shared will only be used for the purposes stated above</li>
+                        <li>My data will not be shared with third parties without my explicit written consent, except as required by law</li>
+                    </ul>
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="dataProtectionConsent" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="dataProtectionConsent" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SECTION 9: Right to Withdraw Consent -->
+        <!-- ============================================ -->
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f97316;">
+            <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
+                Section 9: Right to Withdraw Consent
+            </h4>
+
+            <div class="consent-item" data-consent="withdrawalRightsConsent">
+                <div class="consent-question">
+                    <strong>9:</strong> I understand that:
+                    <ul style="margin: 8px 0 0 20px; padding: 0;">
+                        <li>I may withdraw my consent at any time by notifying QOLAE in writing</li>
+                        <li>Withdrawal of consent will not affect any assessments or services provided prior to the withdrawal</li>
+                    </ul>
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="withdrawalRightsConsent" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="withdrawalRightsConsent" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SECTION 10: Declaration -->
+        <!-- ============================================ -->
+        <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #10b981;">
+            <h4 style="color: #1e293b; margin-bottom: 15px; font-size: 1rem;">
+                Section 10: Declaration
+            </h4>
+
+            <div class="consent-item" data-consent="declarationConsent">
+                <div class="consent-question">
+                    <strong>10:</strong> By signing below, I confirm that I:
+                    <ul style="margin: 8px 0 0 20px; padding: 0;">
+                        <li>Have read and understood this consent form</li>
+                        <li>Consent to the activities outlined in this consent form</li>
+                        <li>Will have the opportunity to ask questions about this consent form at any time</li>
+                    </ul>
+                </div>
+                <div class="consent-options">
+                    <label>
+                        <input type="radio" name="declarationConsent" value="yes" required>
+                        <span>Yes</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="declarationConsent" value="no">
+                        <span>No</span>
+                    </label>
+                </div>
+                <div class="consent-concern">
+                    We understand you have concerns. <a href="#cardInaAppointment" class="book-call-link">Book a call with Liz</a> to discuss.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SIGNATURE SECTION -->
+    <!-- ============================================ -->
+    <div style="background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.1)); padding: 25px; border-radius: 12px; margin-top: 20px; border: 2px solid #4facfe;">
+        <h4 style="color: #1e293b; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; font-size: 1rem;">
+            Your Signature
+        </h4>
+        <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 15px;">
+            Sign below to confirm you have read and agree to all sections of this consent form.
+        </p>
+
+        <!-- Signature Type Selector -->
+        <div class="signature-type-selector">
+            <label class="signature-option">
+                <input type="radio" name="signatureType" value="draw" checked onchange="toggleSignatureType('draw')">
+                <span>Draw my signature</span>
+            </label>
+            <label class="signature-option">
+                <input type="radio" name="signatureType" value="typed" onchange="toggleSignatureType('typed')">
+                <span>Use typed signature</span>
+            </label>
+        </div>
+
+        <div style="background: white; border: 2px dashed #4facfe; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+            <canvas id="signatureCanvas" width="560" height="150" style="width: 100%; border-radius: 4px; background: #fafafa; cursor: crosshair;"></canvas>
+            <input type="hidden" name="clientSignatureData" id="clientSignatureInput" value="">
+        </div>
+
+        <!-- Signature Controls -->
+        <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn btn-secondary" id="clearSignatureBtn" onclick="clearSignature()">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                </svg>
+                Clear
+            </button>
+            <button type="button" class="btn btn-primary" id="generateTypedSignatureBtn" onclick="generateTypedSignature()" style="display: none;">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M9.4,16.6L4.8,12L9.4,7.4L8,6L2,12L8,18L9.4,16.6M14.6,16.6L19.2,12L14.6,7.4L16,6L22,12L16,18L14.6,16.6Z"/>
+                </svg>
+                Generate Typed Signature
+            </button>
+        </div>
+    </div>
+
+    <!-- FORM ACTIONS -->
+    <div style="display: flex; gap: 10px; margin-top: 20px;" id="formActions">
+        <button type="submit" class="btn btn-primary" id="previewConsentBtn" style="flex: 1;">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z"/>
+            </svg>
+            Preview Consent Form
+        </button>
+        <a href="/clientsDashboard?clientPin=<%= client.clientPin %>" class="btn btn-secondary">
+            Cancel
+        </a>
+    </div>
+</form>
+<% } %>
+
+<!-- PREVIEW SECTION (SERVER-SIDE: shown when showPreview is true) -->
+<% if (showPreview) { %>
+<div id="previewSection">
+    <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 15px 20px; border-radius: 10px; margin-bottom: 15px; color: white; text-align: center;">
+        <h3 style="margin: 0 0 5px 0; font-size: 1.1rem;">Preview Your Consent Form</h3>
+        <p style="margin: 0; opacity: 0.9; font-size: 0.9rem;">Review the document below. If everything looks correct, click "Confirm & Submit".</p>
+    </div>
+    <div id="previewContainer" style="background: #f1f5f9; border-radius: 10px; padding: 10px; margin-bottom: 15px; min-height: 600px;">
+        <iframe src="/api/consent/previewPdf?clientPin=<%= client.clientPin %>" style="width: 100%; height: 600px; border: none; border-radius: 8px; background: white;"></iframe>
+    </div>
+    <div style="display: flex; gap: 15px; justify-content: center;">
+        <a href="/clientsDashboard?clientPin=<%= client.clientPin %>&showModal=consent&redoSignature=true" class="btn btn-secondary" style="padding: 12px 30px;">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12.5,8C9.85,8 7.45,9.16 5.78,10.97L3,8.19V15.5H10.31L7.53,12.72C8.77,11.39 10.54,10.5 12.5,10.5C15.89,10.5 18.72,12.89 19.38,16H21.92C21.22,11.5 17.27,8 12.5,8Z"/>
+            </svg>
+            Re-do Signature
+        </a>
+        <form method="POST" action="/api/consent/sign" style="display: inline;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="clientPin" value="<%= client.clientPin %>">
+            <input type="hidden" name="confirmFromPreview" value="true">
+            <button type="submit" class="btn btn-primary" style="padding: 12px 30px;">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M9,16.2L4.8,12L3.4,13.4L9,19L21,7L19.6,5.6L9,16.2Z"/>
+                </svg>
+                Confirm & Submit
+            </button>
+        </form>
+    </div>
+</div>
+<% } %>

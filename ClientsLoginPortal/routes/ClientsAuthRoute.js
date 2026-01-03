@@ -45,9 +45,9 @@ axios.interceptors.response.use(
 const CLIENTS_DASHBOARD_BASE_URL = 'https://clients.qolae.com';
 
 // A.3: JWT Secret - fail fast if not configured
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
-  console.error('❌ JWT_SECRET not found in environment variables!');
-  throw new Error('JWT_SECRET environment variable is required');
+const JWT_SECRET = process.env.CLIENTS_LOGIN_JWT_SECRET || (() => {
+  console.error('❌ CLIENTS_LOGIN_JWT_SECRET not found in environment variables!');
+  throw new Error('CLIENTS_LOGIN_JWT_SECRET environment variable is required');
 })();
 
 // ==============================================
@@ -533,7 +533,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
         if (!clientPin) {
           return reply.code(302).redirect('/secureLogin?error=' + encodeURIComponent('Session data incomplete'));
         }
-        return reply.code(302).redirect(`/ClientsDashboard?clientPin=${encodeURIComponent(clientPin)}`);
+        return reply.code(302).redirect(`/clientsDashboard?clientPin=${encodeURIComponent(clientPin)}`);
 
       } else {
         // 📝 GDPR Audit: Failed password operation

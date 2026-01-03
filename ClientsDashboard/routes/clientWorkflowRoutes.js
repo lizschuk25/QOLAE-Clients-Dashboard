@@ -11,7 +11,23 @@
 // ==============================================
 // LOCATION BLOCK A: CONFIGURATION
 // ==============================================
-const API_URL = process.env.API_URL || 'https://api.qolae.com';
+const SSOT_BASE_URL = process.env.SSOT_BASE_URL || 'https://api.qolae.com';
+
+// Preview cache - stores form data temporarily for server-side preview flow
+// Key: clientPin, Value: { formData, pdfBase64, timestamp }
+// Auto-expires after 10 minutes
+const previewCache = new Map();
+const PREVIEW_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Clean expired previews periodically
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of previewCache.entries()) {
+        if (now - value.timestamp > PREVIEW_CACHE_TTL) {
+            previewCache.delete(key);
+        }
+    }
+}, 60 * 1000); // Check every minute
 
 // ==============================================
 // LOCATION BLOCK B: HELPER FUNCTIONS
@@ -65,191 +81,250 @@ async function authenticateClientAPI(request, reply) {
 // ==============================================
 // LOCATION BLOCK D: ROUTES EXPORT
 // ==============================================
+// NOTE: Main /clientsDashboard route is in cd_server.js (uses buildClientBootstrapData)
+// This file contains supporting API routes for the dashboard
 export default async function clientWorkflowRoutes(fastify, options) {
 
     // ==============================================
-    // LOCATION BLOCK 1: CLIENTS DASHBOARD - MAIN VIEW
-    // Calls SSOT API for data
-    // ==============================================
-    fastify.get('/clientsDashboard', {
-        preHandler: authenticateClient
-    }, async (request, reply) => {
-        const { pin, name, email } = request.user;
-
-        try {
-            // Call SSOT API for dashboard data
-            const apiResponse = await fetch(API_URL + '/api/clients/dashboardData', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin })
-            });
-
-            const apiData = await apiResponse.json();
-
-            if (!apiData.success) {
-                console.error('[ClientWorkflow] API error:', apiData.error);
-                return reply.code(apiResponse.status).send({
-                    success: false,
-                    error: apiData.error || 'Failed to load dashboard'
-                });
-            }
-
-            const client = apiData.client;
-            const notifications = apiData.notifications || [];
-            const unreadCount = apiData.unreadCount || 0;
-
-            // Calculate workflow progress
-            const workflowSteps = [
-                {
-                    label: 'Initial Contact',
-                    status: 'completed',
-                    statusLabel: 'Completed'
-                },
-                {
-                    label: 'Consent Form',
-                    status: client.consentSigned ? 'completed' : 'active',
-                    statusLabel: client.consentSigned ? 'Completed' : 'Action Required'
-                },
-                {
-                    label: 'INA Appointment',
-                    status: client.inaAppointmentScheduled ? 'completed' : (client.consentSigned ? 'active' : 'pending'),
-                    statusLabel: client.inaAppointmentScheduled ? 'Scheduled' : (client.consentSigned ? 'Ready to Schedule' : 'Pending Consent')
-                },
-                {
-                    label: 'Documents Library',
-                    status: client.documentsLibraryEnabled ? 'active' : 'pending',
-                    statusLabel: client.documentsLibraryEnabled ? 'Now Available' : 'Requires Consent'
-                },
-                {
-                    label: 'Final Report',
-                    status: client.finalReportAvailable ? 'completed' : 'pending',
-                    statusLabel: client.finalReportAvailable ? 'Available' : 'Pending Assessment'
-                }
-            ];
-
-            // Calculate progress percentage
-            const completedSteps = workflowSteps.filter(s => s.status === 'completed').length;
-            const progressPercentage = Math.round((completedSteps / workflowSteps.length) * 100);
-
-            // Card states for EJS
-            const cards = {
-                consentForm: {
-                    signed: client.consentSigned,
-                    signedAt: client.consentSignedAt,
-                    status: client.consentSigned ? 'completed' : 'active',
-                    statusLabel: client.consentSigned ? 'Completed' : 'Action Required'
-                },
-                inaAppointment: {
-                    scheduled: client.inaAppointmentScheduled,
-                    appointmentDate: client.inaAppointmentDate,
-                    canSchedule: client.consentSigned,
-                    status: client.inaAppointmentScheduled ? 'completed' : (client.consentSigned ? 'active' : 'pending'),
-                    statusLabel: client.inaAppointmentScheduled ? 'Scheduled' : (client.consentSigned ? 'Ready to Schedule' : 'Pending Consent')
-                },
-                documentsLibrary: {
-                    enabled: client.documentsLibraryEnabled,
-                    status: client.documentsLibraryEnabled ? 'active' : 'pending',
-                    statusLabel: client.documentsLibraryEnabled ? 'Now Available' : 'Requires Consent'
-                },
-                finalReport: {
-                    available: client.finalReportAvailable,
-                    reportDate: client.finalReportDate,
-                    status: client.finalReportAvailable ? 'completed' : 'pending',
-                    statusLabel: client.finalReportAvailable ? 'Available' : 'Pending Assessment'
-                }
-            };
-
-            // Session data
-            const session = {
-                lastLogin: client.lastLogin ? new Date(client.lastLogin).toLocaleString('en-GB') : 'First login',
-                isFirstLogin: !client.lastLogin
-            };
-
-            // CSRF token for forms
-            const csrfToken = fastify.jwt.sign({ csrf: true, pin });
-
-            return reply.view('clientsDashboard.ejs', {
-                client: {
-                    id: client.clientPin,
-                    name: client.clientName,
-                    firstName: client.clientName ? client.clientName.split(' ')[0] : 'Client',
-                    email: client.clientEmail
-                },
-                workflow: {
-                    steps: workflowSteps,
-                    currentStepLabel: client.workflowStatus || 'In Progress'
-                },
-                progressPercentage,
-                cards,
-                notifications: {
-                    items: notifications.map(n => ({
-                        id: n.id,
-                        title: n.title,
-                        message: n.message,
-                        type: n.type,
-                        read: n.read,
-                        timeAgo: getTimeAgo(n.createdAt)
-                    })),
-                    unreadCount
-                },
-                session,
-                csrfToken
-            });
-
-        } catch (error) {
-            console.error('[ClientWorkflow] Error loading dashboard:', error.message);
-            return reply.code(500).send({
-                success: false,
-                error: 'Failed to load dashboard'
-            });
-        }
-    });
-
-    // ==============================================
-    // LOCATION BLOCK 2: SIGN CONSENT FORM (DIGITAL SIGNATURE)
+    // LOCATION BLOCK 1: SIGN CONSENT FORM (DIGITAL SIGNATURE)
+    // Receives form-urlencoded data with signature as base64 string
+    // OR uses cached data from preview flow (confirmFromPreview=true)
     // Calls SSOT API for consent signing
     // ==============================================
-    fastify.post('/api/consent/sign', {
-        preHandler: authenticateClientAPI
-    }, async (request, reply) => {
-        const { pin, name } = request.user;
-
+    fastify.post('/api/consent/sign', async (request, reply) => {
         try {
-            // Get signature from multipart form
-            const data = await request.file();
+            // Verify JWT from cookie
+            await request.jwtVerify();
 
-            if (!data) {
-                return reply.code(400).send({
+            if (request.user.role !== 'client') {
+                return reply.code(401).send({
                     success: false,
-                    error: 'Signature file is required'
+                    error: 'Authentication required'
                 });
             }
 
-            const signatureBuffer = await data.toBuffer();
-            const signatureBase64 = signatureBuffer.toString('base64');
+            const { clientPin, clientName } = request.user;
+            const formData = request.body;
 
-            // Call SSOT API
-            const apiResponse = await fetch(API_URL + '/api/clients/consent/sign', {
+            console.log('[ClientWorkflow] Consent sign request for client PIN:', clientPin);
+
+            let signatureData;
+            let consentData;
+
+            // Check if this is a confirmation from preview flow
+            if (formData.confirmFromPreview === 'true') {
+                console.log('[ClientWorkflow] Confirm from preview flow for:', clientPin);
+
+                // Get cached data from preview
+                const cachedPreview = previewCache.get(clientPin);
+                if (!cachedPreview) {
+                    console.error('[ClientWorkflow] Preview cache expired for:', clientPin);
+                    return reply.redirect('/clientsDashboard?clientPin=' + clientPin + '&error=Preview expired. Please sign again.');
+                }
+
+                // Use cached signature and consent data
+                signatureData = cachedPreview.signatureData;
+                consentData = cachedPreview.consentData;
+
+                // Clear cache after use
+                previewCache.delete(clientPin);
+
+            } else {
+                // Standard flow - get data from form submission
+                signatureData = formData.clientSignatureData;
+                if (!signatureData || signatureData.trim() === '') {
+                    console.error('[ClientWorkflow] No signature data provided');
+                    return reply.code(400).send({
+                        success: false,
+                        error: 'Signature is required'
+                    });
+                }
+
+                // Extract consent radio values (yes/no pattern)
+                consentData = {
+                    inaConsentA: formData.inaConsentA === 'yes',
+                    inaConsentB: formData.inaConsentB === 'yes',
+                    ongoingCaseManagementConsentA: formData.ongoingCaseManagementConsentA === 'yes',
+                    ongoingCaseManagementConsentB: formData.ongoingCaseManagementConsentB === 'yes',
+                    medicalNotesConsentA: formData.medicalNotesConsentA === 'yes',
+                    medicalNotesConsentB: formData.medicalNotesConsentB === 'yes',
+                    healthcareCollaborationConsentA: formData.healthcareCollaborationConsentA === 'yes',
+                    healthcareCollaborationConsentB: formData.healthcareCollaborationConsentB === 'yes',
+                    documentationConsentA: formData.documentationConsentA === 'yes',
+                    documentationConsentB: formData.documentationConsentB === 'yes',
+                    reportsConsentA: formData.reportsConsentA === 'yes',
+                    reportsConsentB: formData.reportsConsentB === 'yes',
+                    legalReportingConsent: formData.legalReportingConsent === 'yes',
+                    dataProtectionConsent: formData.dataProtectionConsent === 'yes',
+                    withdrawalRightsConsent: formData.withdrawalRightsConsent === 'yes',
+                    declarationConsent: formData.declarationConsent === 'yes'
+                };
+
+                // Validate all required consents are checked
+                const allConsentsGiven = Object.values(consentData).every(v => v === true);
+                if (!allConsentsGiven) {
+                    console.error('[ClientWorkflow] Not all consents checked');
+                    return reply.code(400).send({
+                        success: false,
+                        error: 'All consent checkboxes must be checked'
+                    });
+                }
+            }
+
+            console.log('[ClientWorkflow] All consents validated, calling SSOT API');
+
+            // Call SSOT API to save consent
+            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/consent/sign', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    pin,
-                    clientName: name,
-                    signatureData: signatureBase64,
-                    ipAddress: request.ip
+                    clientPin: clientPin,
+                    clientName: clientName,
+                    signatureData: signatureData,
+                    consentData: consentData,
+                    ipAddress: request.ip,
+                    userAgent: request.headers['user-agent'],
+                    signedAt: new Date().toISOString()
                 })
             });
 
             const apiData = await apiResponse.json();
 
-            return reply.code(apiResponse.status).send(apiData);
+            if (apiData.success) {
+                console.log('[ClientWorkflow] Consent signed successfully for:', clientPin);
+                // Redirect back to dashboard with success message
+                return reply.redirect('/clientsDashboard?clientPin=' + clientPin + '&success=Consent form signed successfully');
+            } else {
+                console.error('[ClientWorkflow] SSOT API error:', apiData.error);
+                return reply.code(apiResponse.status).send({
+                    success: false,
+                    error: apiData.error || 'Failed to save consent'
+                });
+            }
 
         } catch (error) {
             console.error('[ClientWorkflow] Error signing consent:', error.message);
             return reply.code(500).send({
                 success: false,
-                error: 'Failed to sign consent form'
+                error: 'Failed to sign consent form: ' + error.message
             });
+        }
+    });
+
+    // ==============================================
+    // LOCATION BLOCK 2: PREVIEW CONSENT FORM (POST)
+    // Generates PDF preview, caches it, and redirects to dashboard with preview visible
+    // SERVER-SIDE PATTERN: POST → cache → redirect → GET serves PDF
+    // ==============================================
+    fastify.post('/api/consent/preview', async (request, reply) => {
+        try {
+            await request.jwtVerify();
+
+            if (request.user.role !== 'client') {
+                return reply.redirect('/clientsDashboard?error=Session expired');
+            }
+
+            const { clientPin, clientName } = request.user;
+            const formData = request.body;
+
+            console.log('[ClientWorkflow] Preview request for client PIN:', clientPin);
+
+            const signatureData = formData.clientSignatureData;
+            if (!signatureData || signatureData.trim() === '') {
+                return reply.redirect(`/clientsDashboard?clientPin=${clientPin}&showModal=consent&error=Please sign before previewing`);
+            }
+
+            // Extract consent radio values (yes/no pattern)
+            const consentData = {
+                inaConsentA: formData.inaConsentA === 'yes',
+                inaConsentB: formData.inaConsentB === 'yes',
+                ongoingCaseManagementConsentA: formData.ongoingCaseManagementConsentA === 'yes',
+                ongoingCaseManagementConsentB: formData.ongoingCaseManagementConsentB === 'yes',
+                medicalNotesConsentA: formData.medicalNotesConsentA === 'yes',
+                medicalNotesConsentB: formData.medicalNotesConsentB === 'yes',
+                healthcareCollaborationConsentA: formData.healthcareCollaborationConsentA === 'yes',
+                healthcareCollaborationConsentB: formData.healthcareCollaborationConsentB === 'yes',
+                documentationConsentA: formData.documentationConsentA === 'yes',
+                documentationConsentB: formData.documentationConsentB === 'yes',
+                reportsConsentA: formData.reportsConsentA === 'yes',
+                reportsConsentB: formData.reportsConsentB === 'yes',
+                legalReportingConsent: formData.legalReportingConsent === 'yes',
+                dataProtectionConsent: formData.dataProtectionConsent === 'yes',
+                withdrawalRightsConsent: formData.withdrawalRightsConsent === 'yes',
+                declarationConsent: formData.declarationConsent === 'yes'
+            };
+
+            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/consent/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientPin: clientPin,
+                    clientName: clientName,
+                    signatureData: signatureData,
+                    consentData: consentData
+                })
+            });
+
+            const apiData = await apiResponse.json();
+
+            if (apiData.success) {
+                console.log('[ClientWorkflow] Preview generated and cached for:', clientPin);
+
+                // Store in preview cache for confirm submission and GET endpoint
+                previewCache.set(clientPin, {
+                    formData: formData,
+                    consentData: consentData,
+                    signatureData: signatureData,
+                    pdfBase64: apiData.pdfBase64,
+                    timestamp: Date.now()
+                });
+
+                // SERVER-SIDE REDIRECT: Show preview in modal
+                return reply.redirect(`/clientsDashboard?clientPin=${clientPin}&showModal=consent&showPreview=true`);
+            } else {
+                return reply.redirect(`/clientsDashboard?clientPin=${clientPin}&showModal=consent&error=${encodeURIComponent(apiData.error || 'Preview failed')}`);
+            }
+
+        } catch (error) {
+            console.error('[ClientWorkflow] Error generating preview:', error.message);
+            return reply.redirect(`/clientsDashboard?error=${encodeURIComponent(error.message)}`);
+        }
+    });
+
+    // ==============================================
+    // LOCATION BLOCK 2B: GET PREVIEW PDF (TOB Pattern)
+    // Serves cached PDF for iframe display - browser renders natively
+    // ==============================================
+    fastify.get('/api/consent/previewPdf', async (request, reply) => {
+        try {
+            await request.jwtVerify();
+
+            const { clientPin } = request.query;
+            const pin = clientPin || request.user.clientPin;
+
+            if (!pin) {
+                return reply.code(400).send({ error: 'Client PIN required' });
+            }
+
+            // Check preview cache
+            if (!previewCache.has(pin)) {
+                console.log('[ClientWorkflow] No cached preview for:', pin);
+                return reply.code(404).send({ error: 'No preview available' });
+            }
+
+            const cachedData = previewCache.get(pin);
+            const pdfBuffer = Buffer.from(cachedData.pdfBase64, 'base64');
+
+            console.log('[ClientWorkflow] Serving cached PDF preview for:', pin);
+
+            return reply
+                .type('application/pdf')
+                .header('Content-Disposition', `inline; filename="consent-preview-${pin}.pdf"`)
+                .send(pdfBuffer);
+
+        } catch (error) {
+            console.error('[ClientWorkflow] Error serving preview PDF:', error.message);
+            return reply.code(500).send({ error: 'Failed to serve preview' });
         }
     });
 
@@ -260,13 +335,13 @@ export default async function clientWorkflowRoutes(fastify, options) {
     fastify.get('/api/notifications', {
         preHandler: authenticateClientAPI
     }, async (request, reply) => {
-        const { pin } = request.user;
+        const { clientPin } = request.user;
 
         try {
-            const apiResponse = await fetch(API_URL + '/api/clients/notifications', {
+            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/notifications', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin })
+                body: JSON.stringify({ pin: clientPin })
             });
 
             const apiData = await apiResponse.json();
@@ -301,13 +376,13 @@ export default async function clientWorkflowRoutes(fastify, options) {
         preHandler: authenticateClientAPI
     }, async (request, reply) => {
         const { id } = request.params;
-        const { pin } = request.user;
+        const { clientPin } = request.user;
 
         try {
-            const apiResponse = await fetch(API_URL + '/api/clients/notifications/read', {
+            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/notifications/read', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin, notificationId: id })
+                body: JSON.stringify({ pin: clientPin, notificationId: id })
             });
 
             const apiData = await apiResponse.json();
@@ -329,13 +404,13 @@ export default async function clientWorkflowRoutes(fastify, options) {
     fastify.get('/api/notifications/count', {
         preHandler: authenticateClientAPI
     }, async (request, reply) => {
-        const { pin } = request.user;
+        const { clientPin } = request.user;
 
         try {
-            const apiResponse = await fetch(API_URL + '/api/clients/notifications/count', {
+            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/notifications/count', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin })
+                body: JSON.stringify({ pin: clientPin })
             });
 
             const apiData = await apiResponse.json();
@@ -351,19 +426,45 @@ export default async function clientWorkflowRoutes(fastify, options) {
     });
 
     // ==============================================
-    // LOCATION BLOCK 6: DOWNLOAD CONSENT FORM
+    // LOCATION BLOCK 6: DOWNLOAD SIGNED CONSENT FORM
+    // Fetches signed consent PDF from SSOT centralRepository
     // ==============================================
     fastify.get('/consent/download', {
         preHandler: authenticateClient
     }, async (request, reply) => {
-        const { pin } = request.user;
+        const { clientPin } = request.user;
 
         try {
-            // TODO: Fetch consent form PDF from storage/blockchain
-            return reply.send({
-                success: false,
-                error: 'Consent form download not implemented yet'
+            console.log('[ClientWorkflow] Consent download requested for:', clientPin);
+
+            // Fetch signed consent PDF from SSOT centralRepository
+            const pdfUrl = `${SSOT_BASE_URL}/centralRepository/protected/signedConsent/signedConsent${clientPin}.pdf`;
+
+            const pdfResponse = await fetch(pdfUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${process.env.API_INTERNAL_KEY}`
+                }
             });
+
+            if (!pdfResponse.ok) {
+                console.error('[ClientWorkflow] PDF not found at:', pdfUrl, 'Status:', pdfResponse.status);
+                return reply.code(404).send({
+                    success: false,
+                    error: 'Signed consent form not found. Please sign your consent form first.'
+                });
+            }
+
+            // Get the PDF as a buffer
+            const pdfBuffer = await pdfResponse.arrayBuffer();
+
+            // Set headers for PDF download
+            reply.header('Content-Type', 'application/pdf');
+            reply.header('Content-Disposition', `inline; filename="SignedConsent_${clientPin}.pdf"`);
+            reply.header('Content-Length', pdfBuffer.byteLength);
+
+            console.log('[ClientWorkflow] Serving signed consent PDF for:', clientPin);
+            return reply.send(Buffer.from(pdfBuffer));
 
         } catch (error) {
             console.error('[ClientWorkflow] Error downloading consent:', error.message);
@@ -381,14 +482,14 @@ export default async function clientWorkflowRoutes(fastify, options) {
     fastify.get('/documents', {
         preHandler: authenticateClient
     }, async (request, reply) => {
-        const { pin } = request.user;
+        const { clientPin } = request.user;
 
         try {
             // Check if Documents Library access is enabled via API
-            const apiResponse = await fetch(API_URL + '/api/clients/documentsLibrary/access', {
+            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/documentsLibrary/access', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin })
+                body: JSON.stringify({ pin: clientPin })
             });
 
             const apiData = await apiResponse.json();
@@ -422,14 +523,14 @@ export default async function clientWorkflowRoutes(fastify, options) {
     fastify.get('/report/view', {
         preHandler: authenticateClient
     }, async (request, reply) => {
-        const { pin } = request.user;
+        const { clientPin } = request.user;
 
         try {
             // Check if report is available via API
-            const apiResponse = await fetch(API_URL + '/api/clients/report/access', {
+            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/report/access', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin })
+                body: JSON.stringify({ pin: clientPin })
             });
 
             const apiData = await apiResponse.json();
@@ -463,13 +564,13 @@ export default async function clientWorkflowRoutes(fastify, options) {
     fastify.get('/api/client/profile', {
         preHandler: authenticateClientAPI
     }, async (request, reply) => {
-        const { pin } = request.user;
+        const { clientPin } = request.user;
 
         try {
-            const apiResponse = await fetch(API_URL + '/api/clients/profile', {
+            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/profile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin })
+                body: JSON.stringify({ pin: clientPin })
             });
 
             const apiData = await apiResponse.json();
@@ -502,3 +603,6 @@ export default async function clientWorkflowRoutes(fastify, options) {
 
     console.log('[ClientWorkflow] Routes registered (SSOT compliant)');
 }
+
+// Export previewCache for access from cd_server.js dashboard route
+export { previewCache };

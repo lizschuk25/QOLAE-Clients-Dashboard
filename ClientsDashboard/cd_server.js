@@ -58,17 +58,17 @@ await server.register(fastifyCors, {
     credentials: true,
 });
 
-// 2. JWT Authentication (must match LoginPortal secret)
+// 2. Cookie Support (MUST be before JWT to parse cookies first)
+await server.register(fastifyCookie);
+
+// 3. JWT Authentication (must match LoginPortal secret)
 await server.register(fastifyJwt, {
-    secret: process.env.JWT_SECRET || 'clients-jwt-secret-production-2025',
+    secret: process.env.CLIENTS_LOGIN_JWT_SECRET,
     cookie: {
         cookieName: 'qolaeClientToken',
         signed: false,
     },
 });
-
-// 3. Cookie Support
-await server.register(fastifyCookie);
 
 // 4. Form Body Parser
 await server.register(fastifyFormbody);
@@ -180,15 +180,37 @@ async function buildClientBootstrapData(clientPin) {
  * Uses SSOT Bootstrap as SINGLE SOURCE OF TRUTH
  * No duplicate database queries - all data comes from SSOT
  */
-server.get('/ClientsDashboard', async (req, reply) => {
+server.get('/clientsDashboard', async (req, reply) => {
     reply.header('Cache-Control', 'no-cache, no-store, must-revalidate');
     reply.header('Pragma', 'no-cache');
     reply.header('Expires', '0');
 
-    const { clientPin } = req.query;
+    const { clientPin, showPreview, redoSignature, showModal } = req.query;
 
     if (!clientPin) {
         return reply.code(400).send({ error: 'Client PIN required' });
+    }
+
+    // Check for preview data in cache (server-side preview flow)
+    let previewData = null;
+    let redoSignatureData = null;
+
+    // Import previewCache dynamically since it's registered after this route
+    const { previewCache } = await import('./routes/clientWorkflowRoutes.js');
+
+    if (showPreview === 'true') {
+        if (previewCache.has(clientPin)) {
+            previewData = previewCache.get(clientPin);
+            console.log(`📄 [ClientsDashboard] Preview mode for ${clientPin}`);
+        }
+    }
+
+    // Check for redo signature flow - preserve consent checkboxes
+    if (redoSignature === 'true') {
+        if (previewCache.has(clientPin)) {
+            redoSignatureData = previewCache.get(clientPin);
+            console.log(`✍️ [ClientsDashboard] Redo signature mode for ${clientPin}`);
+        }
     }
 
     try {
@@ -227,13 +249,9 @@ server.get('/ClientsDashboard', async (req, reply) => {
         };
 
         // 3. WORKFLOW steps (SERVER builds array based on progress)
+        // Steps match the 4 workflow cards: Consent Form, INA Appointment, Documents Library, Final Report
         const workflow = {
             steps: [
-                {
-                    label: 'Initial Contact',
-                    status: 'completed',
-                    statusLabel: 'Completed'
-                },
                 {
                     label: 'Consent Form',
                     status: bootstrapData.progress.consentSigned ? 'completed' : 'active',
@@ -245,9 +263,9 @@ server.get('/ClientsDashboard', async (req, reply) => {
                     statusLabel: bootstrapData.progress.consentSigned ? 'Ready' : 'Pending'
                 },
                 {
-                    label: 'Assessment',
-                    status: 'pending',
-                    statusLabel: 'Pending'
+                    label: 'Documents Library',
+                    status: bootstrapData.features.viewDocuments ? 'active' : 'pending',
+                    statusLabel: bootstrapData.features.viewDocuments ? 'Available' : 'Locked'
                 },
                 {
                     label: 'Final Report',
@@ -270,7 +288,7 @@ server.get('/ClientsDashboard', async (req, reply) => {
                 status: bootstrapData.progress.consentSigned ? 'active' : 'pending',
                 statusLabel: bootstrapData.progress.consentSigned ? 'Ready to Schedule' : 'Awaiting Consent'
             },
-            documentAccess: {
+            documentsLibrary: {
                 enabled: bootstrapData.features.viewDocuments || false,
                 status: bootstrapData.features.viewDocuments ? 'active' : 'pending',
                 statusLabel: bootstrapData.features.viewDocuments ? 'Available' : 'Locked'
@@ -319,7 +337,15 @@ server.get('/ClientsDashboard', async (req, reply) => {
             features: bootstrapData.features,
             caseInfo: bootstrapData.caseInfo,
             ssotBaseUrl: SSOT_BASE_URL,
-            bootstrapData: JSON.stringify(bootstrapData)
+            bootstrapData: JSON.stringify(bootstrapData),
+            // Preview mode data (server-side)
+            showPreview: previewData !== null,
+            previewPdfBase64: previewData?.pdfBase64 || null,
+            // Redo signature mode (preserve checkboxes, auto-open modal)
+            redoSignature: redoSignatureData !== null,
+            cachedConsentData: redoSignatureData?.consentData || null,
+            // Server-side modal control (replaces JavaScript open/close)
+            showModal: showModal || null
         });
 
     } catch (error) {
@@ -333,7 +359,11 @@ server.get('/ClientsDashboard', async (req, reply) => {
 // ==============================================
 
 // Client Workflow Routes (SSOT compliant - calls API for data)
-await server.register(import('./routes/clientWorkflowRoutes.js'));
+const clientWorkflowModule = await import('./routes/clientWorkflowRoutes.js');
+await server.register(clientWorkflowModule.default);
+
+// Access preview cache for server-side preview flow
+const { previewCache } = clientWorkflowModule;
 
 // ==============================================
 // LOCATION BLOCK I: ROOT ROUTE
@@ -351,6 +381,305 @@ server.get('/', async (request, reply) => {
 });
 
 // ==============================================
+// LOCATION BLOCK I2: INA APPOINTMENTS PAGE
+// ==============================================
+/**
+ * GET /inaAppointments
+ * Server-side INA appointment scheduling page
+ * All state managed via query parameters (no client-side JS state)
+ */
+server.get('/inaAppointments', async (req, reply) => {
+    try {
+        await req.jwtVerify();
+        const { clientPin, clientName } = req.user;
+
+        // Query params for server-side state (month as YYYY-MM format)
+        const { month, selectedSlotId } = req.query;
+
+        console.log('[ClientsDashboard] INA Appointments accessed by:', clientPin);
+
+        // Use buildClientBootstrapData helper (handles JWT token retrieval from SSOT)
+        const bootstrapData = await buildClientBootstrapData(clientPin);
+        if (!bootstrapData) {
+            throw new Error('Failed to fetch client data from SSOT');
+        }
+
+        // Build client object for template
+        const fullName = bootstrapData.client?.fullName || clientName || 'Client';
+        const client = {
+            clientPin: clientPin,
+            fullName: fullName,
+            initials: fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
+            referenceNumber: clientPin,
+            address: bootstrapData.client?.address || bootstrapData.consent?.clientAddress || null
+        };
+
+        // Case manager info (from SSOT or defaults)
+        const caseManager = {
+            name: bootstrapData.caseManager?.name || 'Liz'
+        };
+
+        // Check if appointment already confirmed
+        const existingAppointment = bootstrapData.appointments?.ina || null;
+        const appointmentStatus = existingAppointment?.confirmed ? 'confirmed' : 'selecting';
+
+        // Calendar generation (server-side) - YYYY-MM format
+        const currentDate = new Date();
+        const defaultMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+        const targetMonthStr = month || defaultMonth;
+        const [targetYear, targetMonth] = targetMonthStr.split('-').map(Number);
+
+        // Calculate prev/next as YYYY-MM strings
+        const prevDate = new Date(targetYear, targetMonth - 2, 1);
+        const nextDate = new Date(targetYear, targetMonth, 1);
+        const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+        const nextMonth = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`;
+
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+
+        // Build calendar days array (targetMonth is 1-indexed from YYYY-MM)
+        const jsMonth = targetMonth - 1; // Convert to JS 0-indexed
+        const firstDay = new Date(targetYear, jsMonth, 1);
+        const lastDay = new Date(targetYear, jsMonth + 1, 0);
+        const startPadding = (firstDay.getDay() + 6) % 7; // Monday = 0
+
+        const calendarDays = [];
+
+        // Previous month padding
+        const prevMonthLastDay = new Date(targetYear, jsMonth, 0).getDate();
+        for (let i = startPadding - 1; i >= 0; i--) {
+            calendarDays.push({
+                dayNumber: prevMonthLastDay - i,
+                isOtherMonth: true,
+                isToday: false,
+                slots: []
+            });
+        }
+
+        // Current month days with available slots
+        const availableSlots = bootstrapData.availableSlots || [];
+        for (let day = 1; day <= lastDay.getDate(); day++) {
+            const dateStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const daySlots = availableSlots.filter(s => s.date === dateStr);
+            const isToday = (day === currentDate.getDate() && jsMonth === currentDate.getMonth() && targetYear === currentDate.getFullYear());
+
+            calendarDays.push({
+                dayNumber: day,
+                isOtherMonth: false,
+                isToday: isToday,
+                slots: daySlots.map(s => ({
+                    slotId: s.slotId,
+                    time: s.time
+                }))
+            });
+        }
+
+        // Next month padding to complete grid
+        const remainingCells = 42 - calendarDays.length;
+        for (let i = 1; i <= remainingCells; i++) {
+            calendarDays.push({
+                dayNumber: i,
+                isOtherMonth: true,
+                isToday: false,
+                slots: []
+            });
+        }
+
+        // Selected slot data (if any)
+        let selectedSlotData = null;
+        if (selectedSlotId) {
+            const slot = availableSlots.find(s => s.slotId === selectedSlotId);
+            if (slot) {
+                selectedSlotData = {
+                    displayDate: slot.displayDate || slot.date,
+                    time: slot.time
+                };
+            }
+        }
+
+        // Confirmed appointment data
+        const appointment = existingAppointment ? {
+            displayDate: existingAppointment.displayDate,
+            displayTime: existingAppointment.displayTime,
+            location: existingAppointment.location
+        } : null;
+
+        // Generate CSRF token using JWT (same pattern as /clientsDashboard)
+        const csrfToken = server.jwt.sign({
+            csrf: true,
+            clientPin: clientPin,
+            timestamp: Date.now()
+        });
+
+        return reply.view('inaAppointments', {
+            client: client,
+            caseManager: caseManager,
+            csrfToken: csrfToken,
+            appointmentStatus: appointmentStatus,
+            calendarDays: calendarDays,
+            calendarMonth: monthNames[jsMonth],
+            calendarYear: targetYear,
+            currentMonth: targetMonthStr,
+            prevMonth: prevMonth,
+            nextMonth: nextMonth,
+            selectedSlotId: selectedSlotId || null,
+            selectedSlotData: selectedSlotData,
+            appointment: appointment
+        });
+
+    } catch (error) {
+        console.error('[ClientsDashboard] INA Appointments error:', error.message);
+        return reply.redirect('/clientsDashboard?error=Session expired');
+    }
+});
+
+// ==============================================
+// LOCATION BLOCK I2.1: INA APPOINTMENT CONFIRMATION
+// ==============================================
+/**
+ * POST /inaAppointments/confirm
+ * Server-side appointment confirmation
+ * Submits to SSOT API then redirects back to confirmed state
+ */
+server.post('/inaAppointments/confirm', async (req, reply) => {
+    try {
+        await req.jwtVerify();
+        const { clientPin, slotId } = req.body;
+
+        console.log('[ClientsDashboard] INA Appointment confirmation for:', clientPin);
+
+        // Submit confirmation to SSOT
+        const response = await fetch(`${SSOT_BASE_URL}/clients/workspace/appointments/confirm`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.API_INTERNAL_KEY}`
+            },
+            body: JSON.stringify({
+                clientPin: clientPin,
+                slotId: slotId,
+                appointmentType: 'ina'
+            })
+        });
+
+        if (!response.ok) {
+            console.error('[ClientsDashboard] Appointment confirmation failed');
+            return reply.redirect('/inaAppointments?error=Confirmation failed');
+        }
+
+        console.log(`✅ [ClientsDashboard] INA appointment confirmed for ${clientPin}`);
+
+        // Redirect back to show confirmed state
+        return reply.redirect('/inaAppointments');
+
+    } catch (error) {
+        console.error('[ClientsDashboard] Appointment confirmation error:', error.message);
+        return reply.redirect('/clientsDashboard?error=Session expired');
+    }
+});
+
+// ==============================================
+// LOCATION BLOCK I3: DOCUMENTS LIBRARY PAGE
+// ==============================================
+server.get('/documentsLibrary', async (req, reply) => {
+    try {
+        await req.jwtVerify();
+        const { clientPin, clientName } = req.user;
+
+        console.log('[ClientsDashboard] Documents Library accessed by:', clientPin);
+
+        // Use buildClientBootstrapData helper (handles JWT token retrieval from SSOT)
+        const bootstrapData = await buildClientBootstrapData(clientPin);
+
+        if (!bootstrapData) {
+            console.error('[ClientsDashboard] Failed to fetch bootstrap data for documents library');
+            return reply.redirect('/clientsDashboard?error=Failed to load documents');
+        }
+
+        const client = bootstrapData.client || { clientName, clientPin };
+        const consentSigned = bootstrapData.progress?.consentSigned || false;
+
+        // Generate CSRF token using JWT (same pattern as /clientsDashboard)
+        const csrfToken = server.jwt.sign({
+            csrf: true,
+            clientPin: clientPin,
+            timestamp: Date.now()
+        });
+
+        // Render documents library page
+        return reply.view('documentsLibrary', {
+            client: client,
+            csrfToken: csrfToken,
+            consentSigned: consentSigned,
+            documentsLibraryFiles: bootstrapData.documents || [],
+            documentsLibraryFileCount: bootstrapData.documents?.length || 0,
+            pendingUploadRequests: bootstrapData.pendingUploadRequests || []
+        });
+
+    } catch (error) {
+        console.error('[ClientsDashboard] Documents Library error:', error.message);
+        return reply.redirect('/clientsDashboard?error=Session expired');
+    }
+});
+
+// ==============================================
+// LOCATION BLOCK I4: FINAL REPORT PAGE
+// ==============================================
+/**
+ * GET /finalReport
+ * Server-side final INA report viewing page
+ * Report rendered as PNG images (no browser PDF viewer)
+ */
+server.get('/finalReport', async (req, reply) => {
+    try {
+        await req.jwtVerify();
+        const { clientPin, clientName } = req.user;
+
+        console.log('[ClientsDashboard] Final Report accessed by:', clientPin);
+
+        // Use buildClientBootstrapData helper (handles JWT token retrieval from SSOT)
+        const bootstrapData = await buildClientBootstrapData(clientPin);
+
+        if (!bootstrapData) {
+            throw new Error('Failed to fetch client data from SSOT');
+        }
+
+        // Build client object for template
+        const fullName = bootstrapData.client?.fullName || clientName || 'Client';
+        const client = {
+            clientPin: clientPin,
+            fullName: fullName,
+            initials: fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2),
+            referenceNumber: clientPin
+        };
+
+        // Check if report is available
+        const reportData = bootstrapData.finalReport || null;
+        const reportAvailable = reportData?.available || false;
+
+        // Report metadata (when available)
+        const report = reportAvailable ? {
+            completedDate: reportData.completedDate || 'N/A'
+        } : null;
+
+        // Report pages as base64 PNG images (when available)
+        const reportPages = reportAvailable ? (reportData.pages || []) : [];
+
+        return reply.view('finalReport', {
+            client: client,
+            reportAvailable: reportAvailable,
+            report: report,
+            reportPages: reportPages
+        });
+
+    } catch (error) {
+        console.error('[ClientsDashboard] Final Report error:', error.message);
+        return reply.redirect('/clientsDashboard?error=Session expired');
+    }
+});
+
+// ==============================================
 // LOCATION BLOCK J: HEALTH CHECK
 // ==============================================
 server.get('/health', async (request, reply) => {
@@ -363,6 +692,38 @@ server.get('/health', async (request, reply) => {
         architecture: 'SSOT via API-Dashboard',
         database: 'qolae_clients (via api.qolae.com)',
     };
+});
+
+// ==============================================
+// LOCATION BLOCK J2: LOGOUT ROUTE
+// ==============================================
+/**
+ * POST /clientsAuth/logout
+ * Server-side logout - clears JWT cookie and redirects to login
+ */
+server.post('/clientsAuth/logout', async (request, reply) => {
+    try {
+        console.log('🔒 [ClientsDashboard] Logout request received');
+
+        // Clear the JWT cookie
+        reply.clearCookie('qolaeClientToken', {
+            path: '/',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+        });
+
+        console.log('✅ [ClientsDashboard] Cookie cleared, redirecting to login');
+
+        // Redirect to ClientsLoginPortal
+        const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clientsLogin';
+        return reply.redirect(loginUrl);
+
+    } catch (error) {
+        console.error('❌ [ClientsDashboard] Logout error:', error.message);
+        const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clientsLogin';
+        return reply.redirect(loginUrl);
+    }
 });
 
 // ==============================================

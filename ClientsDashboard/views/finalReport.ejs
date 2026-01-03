@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Report - QOLAE Client Portal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ============================================================= */
+        /* BASE STYLES */
+        /* ============================================================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #1e293b;
+        }
+
+        /* ============================================================= */
+        /* LOGO HEADER */
+        /* ============================================================= */
+        .logoHeader {
+            text-align: center;
+            padding: 10px 20px 20px 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .pageLogo {
+            height: 70px;
+            width: auto;
+        }
+
+        /* ============================================================= */
+        /* MAIN CONTAINER */
+        /* ============================================================= */
+        .pageContainer {
+            background: white;
+            border-radius: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        /* ============================================================= */
+        /* HEADER */
+        /* ============================================================= */
+        .pageHeader {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            padding: 20px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .headerTitle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .closeBtn {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .closeBtn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* ============================================================= */
+        /* CLIENT BANNER */
+        /* ============================================================= */
+        .clientBanner {
+            background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+            border-bottom: 1px solid #c4b5fd;
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .clientInfo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .clientAvatar {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .clientDetails h3 {
+            font-size: 0.95rem;
+            color: #0f172a;
+        }
+
+        .clientDetails span {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .statusBadge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .statusBadge.pending {
+            background: #fef3c7;
+            color: #92400e;
+            border: 2px solid #fbbf24;
+        }
+
+        .statusBadge.available {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+
+        /* ============================================================= */
+        /* CONTENT AREA */
+        /* ============================================================= */
+        .contentArea {
+            padding: 24px 28px;
+        }
+
+        /* ============================================================= */
+        /* PENDING STATE */
+        /* ============================================================= */
+        .pendingContainer {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .pendingIcon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            border: 3px solid #fbbf24;
+        }
+
+        .pendingIcon i {
+            font-size: 42px;
+            color: #b45309;
+        }
+
+        .pendingContainer h2 {
+            font-size: 1.5rem;
+            color: #92400e;
+            margin-bottom: 12px;
+        }
+
+        .pendingContainer p {
+            color: #a16207;
+            font-size: 1rem;
+            line-height: 1.6;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .pendingInfo {
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+            border: 2px solid #fcd34d;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .pendingInfo h4 {
+            color: #92400e;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pendingInfo ul {
+            list-style: none;
+            text-align: left;
+        }
+
+        .pendingInfo li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            color: #a16207;
+            font-size: 0.9rem;
+        }
+
+        .pendingInfo li i {
+            color: #f59e0b;
+            width: 20px;
+        }
+
+        /* ============================================================= */
+        /* REPORT AVAILABLE STATE */
+        /* ============================================================= */
+        .reportContainer {
+            padding: 20px 0;
+        }
+
+        .reportHeader {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border: 2px solid #86efac;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+        }
+
+        .reportHeaderLeft {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .reportHeaderIcon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reportHeaderIcon i {
+            color: white;
+            font-size: 1.4rem;
+        }
+
+        .reportHeaderText h3 {
+            color: #065f46;
+            font-size: 1.1rem;
+            margin-bottom: 2px;
+        }
+
+        .reportHeaderText span {
+            color: #047857;
+            font-size: 0.85rem;
+        }
+
+        .reportMeta {
+            text-align: right;
+        }
+
+        .reportMeta .label {
+            font-size: 0.75rem;
+            color: #15803d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .reportMeta .value {
+            font-weight: 600;
+            color: #14532d;
+            font-size: 0.95rem;
+        }
+
+        /* ============================================================= */
+        /* REPORT PAGES - Server-rendered images */
+        /* ============================================================= */
+        .reportPages {
+            background: #f1f5f9;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .reportPage {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .reportPage:last-child {
+            margin-bottom: 0;
+        }
+
+        .reportPage img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .pageIndicator {
+            background: #f8fafc;
+            padding: 8px 16px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        /* ============================================================= */
+        /* FOOTER */
+        /* ============================================================= */
+        .pageFooter {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 16px 28px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btnSecondary {
+            background: white;
+            color: #64748b;
+            border: 2px solid #e2e8f0;
+        }
+
+        .btnSecondary:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        /* ============================================================= */
+        /* RESPONSIVE */
+        /* ============================================================= */
+        @media (max-width: 768px) {
+            .clientBanner {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .reportHeader {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+
+            .reportMeta {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================= -->
+<!-- LOCATION BLOCK 1: LOGO HEADER -->
+<!-- ============================================================= -->
+<div class="logoHeader">
+    <img src="https://api.qolae.com/centralRepository/public/images/qolaeNewLogo.png" alt="QOLAE" class="pageLogo">
+</div>
+
+<!-- ============================================================= -->
+<!-- LOCATION BLOCK 2: MAIN PAGE CONTAINER -->
+<!-- ============================================================= -->
+<div class="pageContainer">
+    
+    <!-- Header -->
+    <div class="pageHeader">
+        <div class="headerTitle">
+            <i class="fas fa-file-medical-alt"></i>
+            <span>Final Report</span>
+        </div>
+        <!-- Server-side link back to dashboard -->
+        <a href="/clientsDashboard?clientPin=<%= client.clientPin %>" class="closeBtn" title="Return to Dashboard">
+            <i class="fas fa-times"></i>
+        </a>
+    </div>
+
+    <!-- Client Banner -->
+    <div class="clientBanner">
+        <div class="clientInfo">
+            <div class="clientAvatar"><%= client.initials %></div>
+            <div class="clientDetails">
+                <h3><%= client.fullName %></h3>
+                <span>Ref: <%= client.referenceNumber %></span>
+            </div>
+        </div>
+        <% if (reportAvailable) { %>
+            <span class="statusBadge available">
+                <i class="fas fa-check-circle"></i> Report Available
+            </span>
+        <% } else { %>
+            <span class="statusBadge pending">
+                <i class="fas fa-clock"></i> Pending Assessment
+            </span>
+        <% } %>
+    </div>
+
+    <!-- Content Area -->
+    <div class="contentArea">
+
+        <!-- ============================================================= -->
+        <!-- LOCATION BLOCK 3: PENDING STATE -->
+        <!-- Server-side conditional - shown when report not yet available -->
+        <!-- ============================================================= -->
+        <% if (!reportAvailable) { %>
+            
+            <div class="pendingContainer">
+                <div class="pendingIcon">
+                    <i class="fas fa-hourglass-half"></i>
+                </div>
+                <h2>Report Pending</h2>
+                <p>Your final assessment report will be available once the Immediate Needs Assessment has been completed and reviewed.</p>
+
+                <div class="pendingInfo">
+                    <h4><i class="fas fa-info-circle"></i> What happens next?</h4>
+                    <ul>
+                        <li><i class="fas fa-check"></i> Your INA appointment is conducted</li>
+                        <li><i class="fas fa-check"></i> The assessment report is prepared</li>
+                        <li><i class="fas fa-check"></i> Quality review is completed</li>
+                        <li><i class="fas fa-bell"></i> You'll receive a notification when ready</li>
+                    </ul>
+                </div>
+            </div>
+
+        <% } else { %>
+
+        <!-- ============================================================= -->
+        <!-- LOCATION BLOCK 4: REPORT AVAILABLE STATE -->
+        <!-- Server-rendered PDF pages as images - NO browser PDF viewer -->
+        <!-- ============================================================= -->
+            
+            <div class="reportContainer">
+                <div class="reportHeader">
+                    <div class="reportHeaderLeft">
+                        <div class="reportHeaderIcon">
+                            <i class="fas fa-file-check"></i>
+                        </div>
+                        <div class="reportHeaderText">
+                            <h3>Immediate Needs Assessment Report</h3>
+                            <span>Your assessment has been completed</span>
+                        </div>
+                    </div>
+                    <div class="reportMeta">
+                        <div class="label">Completed</div>
+                        <div class="value"><%= report.completedDate %></div>
+                    </div>
+                </div>
+
+                <!-- Report Pages - Server-rendered as base64 PNG images -->
+                <div class="reportPages">
+                    <% if (reportPages && reportPages.length > 0) { %>
+                        <% reportPages.forEach(function(page, index) { %>
+                            <div class="reportPage">
+                                <img src="data:image/png;base64,<%= page.imageData %>" 
+                                     alt="Report Page <%= index + 1 %>">
+                                <div class="pageIndicator">
+                                    Page <%= index + 1 %> of <%= reportPages.length %>
+                                </div>
+                            </div>
+                        <% }); %>
+                    <% } else { %>
+                        <!-- Fallback if images not generated -->
+                        <div style="padding: 40px; text-align: center; color: #64748b;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 12px; display: block;"></i>
+                            <p>Report images are being generated. Please refresh in a moment.</p>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+
+        <% } %>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="pageFooter">
+        <a href="/clientsDashboard?clientPin=<%= client.clientPin %>" class="btn btnSecondary">
+            <i class="fas fa-arrow-left"></i> Return to Dashboard
+        </a>
+    </div>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- NO CLIENT-SIDE JAVASCRIPT -->
+<!-- Report is view-only, all rendering done server-side -->
+<!-- ============================================================= -->
+
+</body>
+</html>

@@ -1,0 +1,923 @@
+<%
+/*
+================================================================================
+QOLAE CLIENT DOCUMENT LIBRARY - READ-ONLY + CONDITIONAL UPLOAD v1.0
+================================================================================
+VERSION: 1.0.0 (PURE SERVER-SIDE - ZERO JAVASCRIPT)
+FRAMEWORK: Fastify + EJS + Server-Side Blockchain
+LAST UPDATED: 2nd January 2026
+
+PURPOSE:
+Client Document Library (Card 4 of 5 in Clients Workflow) - Server-side
+read-only view with conditional upload when requested by Case Manager/Lawyer.
+
+CRITICAL: ZERO CLIENT-SIDE JAVASCRIPT
+This page uses ONLY:
+- HTML native forms
+- CSS for styling
+- EJS server-side conditionals
+- Form POST + Server Redirect pattern
+
+CLIENT PERMISSIONS:
+  - READ: View all documents in their library (consent forms, INA reports, etc.)
+  - UPLOAD: ONLY when pendingUploadRequests exists (CM/Lawyer requested documents)
+  - DELETE: NOT ALLOWED (clients cannot delete documents)
+
+SERVER ROUTES REQUIRED (Client Bridge -> API SSOT):
+  GET  /documentsLibrary              - Render library view
+  POST /documentsLibrary/upload       - Multipart file upload (conditional)
+
+BOOTSTRAP DATA (passed from server to EJS):
+  clientPin: string                   - Client PIN
+  client: object                      - Client profile data
+  csrfToken: string                   - CSRF protection
+  documentsLibraryFiles: array        - Documents from database
+  documentsLibraryFileCount: number   - Total document count
+  pendingUploadRequests: array        - Requests from CM/Lawyer (enables upload)
+  consentSigned: boolean              - Whether consent form is signed
+
+================================================================================
+*/
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Documents - <%= client.name %></title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        /* ============================================================= */
+        /* BASE STYLES */
+        /* ============================================================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #1e293b;
+        }
+
+        /* ============================================================= */
+        /* LOGO HEADER */
+        /* ============================================================= */
+        .logoHeader {
+            text-align: left;
+            padding: 15px 20px 10px 20px;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .pageLogo {
+            height: 120px;
+            width: auto;
+        }
+
+        /* ============================================================= */
+        /* CONSENT REQUIRED BLOCK */
+        /* ============================================================= */
+        .consent-block {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            margin: 40px auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .consent-block-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .consent-block-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .consent-block-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .consent-warning {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: start;
+            gap: 12px;
+        }
+
+        .consent-warning-icon {
+            font-size: 24px;
+            color: #d97706;
+        }
+
+        .consent-warning-content h4 {
+            color: #92400e;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .consent-warning-content p {
+            color: #78350f;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .back-link {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: white;
+            color: #64748b;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        /* ============================================================= */
+        /* MODAL CONTAINER */
+        /* ============================================================= */
+        .modal-container {
+            background: white;
+            border-radius: 16px;
+            max-width: 900px;
+            margin: 20px auto;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        /* ============================================================= */
+        /* MODAL HEADER */
+        /* ============================================================= */
+        .modal-header {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .blockchain-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* ============================================================= */
+        /* CLIENT BANNER */
+        /* ============================================================= */
+        .client-banner {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-bottom: 1px solid #bae6fd;
+            padding: 16px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .client-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .client-avatar {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .client-details h3 {
+            font-size: 1rem;
+            color: #0f172a;
+            margin-bottom: 2px;
+        }
+
+        .client-details span {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .doc-count-banner {
+            text-align: right;
+        }
+
+        .doc-count-banner .number {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+
+        .doc-count-banner .label {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        /* ============================================================= */
+        /* CONTENT AREA */
+        /* ============================================================= */
+        .content-area {
+            padding: 28px;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        .section-description {
+            color: #64748b;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        /* ============================================================= */
+        /* UPLOAD REQUEST BANNER (Conditional) */
+        /* ============================================================= */
+        .upload-request-banner {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .upload-request-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .upload-request-header i {
+            font-size: 1.5rem;
+            color: #d97706;
+        }
+
+        .upload-request-header h4 {
+            color: #92400e;
+            font-size: 1rem;
+        }
+
+        .upload-request-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 16px 0;
+        }
+
+        .upload-request-list li {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #78350f;
+        }
+
+        .upload-request-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        /* ============================================================= */
+        /* UPLOAD FORM (Conditional) */
+        /* ============================================================= */
+        .upload-section {
+            background: white;
+            border: 3px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .upload-zone-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .upload-zone-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+
+        .upload-zone-icon i {
+            font-size: 32px;
+            color: white;
+        }
+
+        .upload-zone-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+
+        .upload-zone-hint {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .upload-form-fields {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            background: #f8fafc;
+        }
+
+        .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            background: white;
+        }
+
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn-upload {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-upload:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        /* ============================================================= */
+        /* DOCUMENTS LIST */
+        /* ============================================================= */
+        .category-section {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+
+        .category-header {
+            background: linear-gradient(to right, #f8fafc, white);
+            padding: 20px 24px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .category-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .category-icon.consent { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+        .category-icon.medical { background: linear-gradient(135deg, #fee2e2, #fecaca); }
+        .category-icon.reports { background: linear-gradient(135deg, #fed7aa, #fdba74); }
+        .category-icon.legal { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
+        .category-icon.photos { background: linear-gradient(135deg, #fce7f3, #fbcfe8); }
+        .category-icon.custom { background: linear-gradient(135deg, #f1f5f9, #e2e8f0); }
+
+        .category-info {
+            flex: 1;
+        }
+
+        .category-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .category-count {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .document-row {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 16px;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .document-row:last-child {
+            border-bottom: none;
+        }
+
+        .doc-type-badge {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+
+        .doc-details {
+            flex: 1;
+        }
+
+        .doc-title {
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .doc-description {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-style: italic;
+            margin-bottom: 4px;
+        }
+
+        .doc-info {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .doc-action {
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .doc-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        /* ============================================================= */
+        /* EMPTY STATE */
+        /* ============================================================= */
+        .empty-state {
+            text-align: center;
+            padding: 60px 24px;
+            color: #94a3b8;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.25rem;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 0.95rem;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        /* ============================================================= */
+        /* MODAL FOOTER */
+        /* ============================================================= */
+        .modal-footer {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 20px 28px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #64748b;
+            border: 2px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        /* ============================================================= */
+        /* RESPONSIVE */
+        /* ============================================================= */
+        @media (max-width: 768px) {
+            .client-banner {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+
+            .document-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .doc-action {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+<%
+// ============================================================
+// EJS HELPERS (Server-Side Only)
+// ============================================================
+const getInitials = (name) => {
+    if (!name || name === 'Client') return 'CL';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+};
+
+// Category definitions (client-focused)
+const categoryDefs = {
+    consent: { icon: '&#x1F4DD;', name: 'Consent Forms' },
+    medical: { icon: '&#x1F4CB;', name: 'Medical Records' },
+    reports: { icon: '&#x1F4CA;', name: 'INA Reports & Assessments' },
+    legal: { icon: '&#x2696;&#xFE0F;', name: 'Legal Documents' },
+    photos: { icon: '&#x1F4F8;', name: 'Photos' },
+    custom: { icon: '&#x2795;', name: 'Other Documents' }
+};
+
+// Calculate category counts
+const categoryCounts = {
+    consent: 0, medical: 0, reports: 0, legal: 0, photos: 0, custom: 0
+};
+
+const files = typeof documentsLibraryFiles !== 'undefined' ? documentsLibraryFiles : [];
+const fileCount = typeof documentsLibraryFileCount !== 'undefined' ? documentsLibraryFileCount : 0;
+const uploadRequests = typeof pendingUploadRequests !== 'undefined' ? pendingUploadRequests : [];
+const hasUploadRequests = uploadRequests && uploadRequests.length > 0;
+
+if (Array.isArray(files)) {
+    files.forEach(doc => {
+        const cat = doc.category || 'custom';
+        if (categoryCounts.hasOwnProperty(cat)) categoryCounts[cat]++;
+    });
+}
+
+const hasFiles = files && files.length > 0;
+
+// File extension helper
+const getFileExt = (fileName) => {
+    if (!fileName) return 'DOC';
+    return fileName.split('.').pop().toUpperCase();
+};
+
+// File size helper
+const formatFileSize = (bytes) => {
+    if (!bytes) return 'N/A';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+};
+%>
+
+<!-- ============================================================= -->
+<!-- CONSENT CHECK (Must sign consent before viewing documents) -->
+<!-- ============================================================= -->
+<% if (!consentSigned) { %>
+<div class="consent-block">
+    <div class="consent-block-header">
+        <div class="consent-block-icon">&#x1F4C1;</div>
+        <div class="consent-block-title">My Documents</div>
+    </div>
+    <div class="consent-warning">
+        <div class="consent-warning-icon">&#x26A0;&#xFE0F;</div>
+        <div class="consent-warning-content">
+            <h4>Consent Form Required</h4>
+            <p>Please complete and sign your Consent Form before accessing your Document Library. This ensures GDPR compliance and protects your data.</p>
+        </div>
+    </div>
+    <a href="/clientsDashboard?clientPin=<%= client.clientPin %>" class="back-link">
+        <i class="fas fa-arrow-left"></i> Return to Dashboard
+    </a>
+</div>
+
+<% } else { %>
+<!-- ============================================================= -->
+<!-- LOGO HEADER -->
+<!-- ============================================================= -->
+<div class="logoHeader">
+    <img src="https://api.qolae.com/centralRepository/public/images/qolaeNewLogo.png" alt="QOLAE" class="pageLogo">
+</div>
+
+<!-- ============================================================= -->
+<!-- MAIN DOCUMENT LIBRARY -->
+<!-- ============================================================= -->
+<div class="modal-container">
+
+    <!-- Modal Header -->
+    <div class="modal-header">
+        <div class="modal-title">
+            <i class="fas fa-folder-open"></i>
+            <span>My Documents</span>
+            <span class="blockchain-badge">&#x1F517; Blockchain Secured</span>
+        </div>
+        <a href="/clientsDashboard?clientPin=<%= client.clientPin %>" class="close-btn" title="Return to Dashboard">
+            <i class="fas fa-times"></i>
+        </a>
+    </div>
+
+    <!-- Client Banner -->
+    <div class="client-banner">
+        <div class="client-info">
+            <div class="client-avatar"><%= getInitials(client.name) %></div>
+            <div class="client-details">
+                <h3><%= client.name %></h3>
+                <span>Ref: <%= client.clientPin %></span>
+            </div>
+        </div>
+        <div class="doc-count-banner">
+            <div class="number"><%= fileCount %></div>
+            <div class="label">documents in library</div>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area">
+        <h2 class="section-title">Your Document Library</h2>
+        <p class="section-description">
+            View all documents related to your case. Your signed consent forms, INA reports, and any other case documents will appear here.
+        </p>
+
+        <!-- ============================================================= -->
+        <!-- UPLOAD REQUEST BANNER (Only shown if CM/Lawyer requested docs) -->
+        <!-- ============================================================= -->
+        <% if (hasUploadRequests) { %>
+        <div class="upload-request-banner">
+            <div class="upload-request-header">
+                <i class="fas fa-bell"></i>
+                <h4>Document Request from Your Case Manager</h4>
+            </div>
+            <ul class="upload-request-list">
+                <% uploadRequests.forEach(request => { %>
+                <li>
+                    <i class="fas fa-file-upload"></i>
+                    <span><%= request.description || request.documentType %></span>
+                </li>
+                <% }); %>
+            </ul>
+
+            <!-- Upload Form (Only shown when requests exist) -->
+            <form action="/documentsLibrary/upload" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="clientPin" value="<%= client.clientPin %>">
+
+                <div class="upload-section">
+                    <div class="upload-zone-header">
+                        <div class="upload-zone-icon">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="upload-zone-title">Upload Requested Documents</div>
+                        <div class="upload-zone-hint">PDF, DOC, JPG, PNG up to 25MB</div>
+                    </div>
+
+                    <div class="upload-form-fields">
+                        <div class="form-group">
+                            <label for="file"><i class="fas fa-file"></i> Select File:</label>
+                            <input type="file" name="file" id="file" required
+                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="requestId"><i class="fas fa-tag"></i> This is for:</label>
+                            <select name="requestId" id="requestId" required>
+                                <% uploadRequests.forEach(request => { %>
+                                <option value="<%= request.requestId %>"><%= request.description || request.documentType %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description"><i class="fas fa-align-left"></i> Notes (optional):</label>
+                            <textarea name="description" id="description" placeholder="Add any notes about this document..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn-upload">
+                            <i class="fas fa-upload"></i> Upload Document
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <% } %>
+
+        <!-- ============================================================= -->
+        <!-- DOCUMENTS BY CATEGORY (Read-Only View) -->
+        <!-- ============================================================= -->
+        <% if (hasFiles) { %>
+            <% Object.keys(categoryDefs).forEach(catKey => {
+                const catDocs = files.filter(d => d.category === catKey);
+                if (catDocs.length > 0) { %>
+        <div class="category-section">
+            <div class="category-header">
+                <div class="category-icon <%= catKey %>"><%- categoryDefs[catKey].icon %></div>
+                <div class="category-info">
+                    <div class="category-name"><%= categoryDefs[catKey].name %></div>
+                    <div class="category-count"><%= catDocs.length %> document(s)</div>
+                </div>
+            </div>
+            <% catDocs.forEach(doc => { %>
+            <div class="document-row">
+                <div class="doc-type-badge"><%= getFileExt(doc.fileName) %></div>
+                <div class="doc-details">
+                    <div class="doc-title"><%= doc.fileName %></div>
+                    <% if (doc.description) { %>
+                    <div class="doc-description">"<%= doc.description %>"</div>
+                    <% } %>
+                    <div class="doc-info"><%= formatFileSize(doc.fileSize) %> &bull; <%= doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-GB') : 'N/A' %></div>
+                </div>
+                <% if (doc.viewUrl) { %>
+                <a href="<%= doc.viewUrl %>" target="_blank" class="doc-action">
+                    <i class="fas fa-eye"></i> View
+                </a>
+                <% } %>
+            </div>
+            <% }); %>
+        </div>
+            <% }
+            }); %>
+        <% } else { %>
+        <!-- Empty State -->
+        <div class="empty-state">
+            <i class="fas fa-folder-open"></i>
+            <h3>No Documents Yet</h3>
+            <p>Once you sign your consent form and complete your INA appointment, your documents will appear here.</p>
+        </div>
+        <% } %>
+
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="modal-footer">
+        <a href="/clientsDashboard?clientPin=<%= client.clientPin %>" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Return to Dashboard
+        </a>
+    </div>
+
+</div><!-- End modal-container -->
+<% } %><!-- End else consentSigned -->
+
+</body>
+</html>

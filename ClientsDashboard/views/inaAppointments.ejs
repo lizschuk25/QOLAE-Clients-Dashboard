@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your INA Appointment - QOLAE Client Portal</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ============================================================= */
+        /* BASE STYLES */
+        /* ============================================================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #1e293b;
+        }
+
+        /* ============================================================= */
+        /* LOGO HEADER */
+        /* ============================================================= */
+        .logoHeader {
+            text-align: left;
+            padding: 15px 20px 10px 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .pageLogo {
+            height: 120px;
+            width: auto;
+        }
+
+        /* ============================================================= */
+        /* MAIN CONTAINER */
+        /* ============================================================= */
+        .pageContainer {
+            background: white;
+            border-radius: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        /* ============================================================= */
+        /* HEADER */
+        /* ============================================================= */
+        .pageHeader {
+            background: linear-gradient(135deg, #a67c52, #8b5a3c);
+            color: white;
+            padding: 20px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .headerTitle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .closeBtn {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .closeBtn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* ============================================================= */
+        /* CLIENT BANNER */
+        /* ============================================================= */
+        .clientBanner {
+            background: linear-gradient(135deg, #faf6f2, #f5ebe0);
+            border-bottom: 1px solid #dbc9b8;
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .clientInfo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .clientAvatar {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #a67c52, #8b5a3c);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .clientDetails h3 {
+            font-size: 0.95rem;
+            color: #0f172a;
+        }
+
+        .clientDetails span {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .statusBadge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .statusBadge.selecting {
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 2px solid #0ea5e9;
+        }
+
+        .statusBadge.confirmed {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+
+        /* ============================================================= */
+        /* CONTENT AREA */
+        /* ============================================================= */
+        .contentArea {
+            padding: 24px 28px;
+        }
+
+        /* ============================================================= */
+        /* INTRO TEXT */
+        /* ============================================================= */
+        .introSection {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 2px solid #7dd3fc;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 24px;
+        }
+
+        .introIcon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .introIcon i {
+            color: white;
+            font-size: 1.3rem;
+        }
+
+        .introContent h3 {
+            font-size: 1rem;
+            color: #0c4a6e;
+            margin-bottom: 4px;
+        }
+
+        .introContent p {
+            font-size: 0.9rem;
+            color: #0369a1;
+            line-height: 1.5;
+        }
+
+        /* ============================================================= */
+        /* CALENDAR CONTAINER */
+        /* ============================================================= */
+        .calendarContainer {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        /* ============================================================= */
+        /* CALENDAR HEADER */
+        /* ============================================================= */
+        .calendarHeader {
+            background: white;
+            padding: 16px 20px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .calendarNav {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .calendarNavBtn {
+            width: 36px;
+            height: 36px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: #374151;
+        }
+
+        .calendarNavBtn:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .calendarMonth {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .calendarLegend {
+            display: flex;
+            gap: 16px;
+        }
+
+        .legendItem {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .legendDot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .legendDot.available {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .legendDot.unavailable {
+            background: #e2e8f0;
+        }
+
+        .legendDot.selected {
+            background: linear-gradient(135deg, #a67c52, #8b5a3c);
+        }
+
+        /* ============================================================= */
+        /* CALENDAR GRID */
+        /* ============================================================= */
+        .calendarGrid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+
+        .calendarDayHeader {
+            background: #f1f5f9;
+            padding: 12px;
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .calendarDay {
+            min-height: 90px;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            position: relative;
+        }
+
+        .calendarDay.otherMonth {
+            background: #f8fafc;
+        }
+
+        .calendarDay.otherMonth .dayNumber {
+            color: #cbd5e1;
+        }
+
+        .dayNumber {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .dayNumber.today {
+            background: #3b82f6;
+            color: white;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ============================================================= */
+        /* TIME SLOTS - Server-side links, NOT onclick */
+        /* ============================================================= */
+        .timeSlot {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .timeSlot.available {
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+
+        .timeSlot.available:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .timeSlot.selected {
+            background: linear-gradient(135deg, #a67c52, #8b5a3c);
+            color: white;
+            border: 1px solid #8b5a3c;
+        }
+
+        .timeSlot.unavailable {
+            background: #f1f5f9;
+            color: #94a3b8;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+
+        /* ============================================================= */
+        /* SELECTION PANEL */
+        /* ============================================================= */
+        .selectionPanel {
+            background: white;
+            border-top: 2px solid #e2e8f0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .selectedInfo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .selectedInfo.empty {
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .selectedBadge {
+            background: linear-gradient(135deg, #faf6f2, #f5ebe0);
+            border: 2px solid #a67c52;
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .selectedBadge i {
+            color: #8b5a3c;
+            font-size: 1.2rem;
+        }
+
+        .selectedBadge .dateTime {
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .selectedBadge .dateTime span {
+            display: block;
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btnPrimary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btnPrimary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        }
+
+        .btnPrimary:disabled,
+        .btnPrimary.disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            pointer-events: none;
+        }
+
+        .btnSecondary {
+            background: white;
+            color: #64748b;
+            border: 2px solid #e2e8f0;
+        }
+
+        /* ============================================================= */
+        /* CONFIRMED STATE */
+        /* ============================================================= */
+        .confirmedContainer {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .confirmedIcon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            border: 3px solid #10b981;
+        }
+
+        .confirmedIcon i {
+            font-size: 36px;
+            color: #059669;
+        }
+
+        .confirmedContainer h2 {
+            font-size: 1.5rem;
+            color: #065f46;
+            margin-bottom: 8px;
+        }
+
+        .confirmedContainer > p {
+            color: #047857;
+            margin-bottom: 32px;
+        }
+
+        .confirmedDetails {
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border: 2px solid #86efac;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 450px;
+            margin: 0 auto 24px;
+            text-align: left;
+        }
+
+        .confirmedDetails h4 {
+            font-size: 0.85rem;
+            color: #166534;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .detailRow {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #bbf7d0;
+        }
+
+        .detailRow:last-child {
+            border-bottom: none;
+        }
+
+        .detailRow i {
+            width: 32px;
+            height: 32px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #10b981;
+            font-size: 0.9rem;
+        }
+
+        .detailRow .label {
+            font-size: 0.8rem;
+            color: #15803d;
+        }
+
+        .detailRow .value {
+            font-weight: 600;
+            color: #14532d;
+        }
+
+        .preparationNotes {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+            text-align: left;
+        }
+
+        .preparationNotes h4 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+            color: #0f172a;
+            margin-bottom: 12px;
+        }
+
+        .preparationNotes ul {
+            list-style: none;
+        }
+
+        .preparationNotes li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 0;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .preparationNotes li i {
+            color: #10b981;
+            margin-top: 3px;
+        }
+
+        /* ============================================================= */
+        /* FOOTER */
+        /* ============================================================= */
+        .pageFooter {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 16px 28px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* ============================================================= */
+        /* RESPONSIVE */
+        /* ============================================================= */
+        @media (max-width: 768px) {
+            .calendarLegend {
+                display: none;
+            }
+
+            .calendarDay {
+                min-height: 70px;
+                padding: 4px;
+            }
+
+            .timeSlot {
+                font-size: 0.6rem;
+                padding: 4px;
+            }
+
+            .selectionPanel {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .clientBanner {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================= -->
+<!-- LOCATION BLOCK 1: LOGO HEADER -->
+<!-- ============================================================= -->
+<div class="logoHeader">
+    <img src="https://api.qolae.com/centralRepository/public/images/qolaeNewLogo.png" alt="QOLAE" class="pageLogo">
+</div>
+
+<!-- ============================================================= -->
+<!-- LOCATION BLOCK 2: MAIN PAGE CONTAINER -->
+<!-- ============================================================= -->
+<div class="pageContainer">
+    
+    <!-- Header -->
+    <div class="pageHeader">
+        <div class="headerTitle">
+            <i class="fas fa-calendar-check"></i>
+            <span>Your INA Appointment</span>
+        </div>
+        <!-- Server-side link back to dashboard -->
+        <a href="/clientsDashboard?clientPin=<%= client.clientPin %>" class="closeBtn" title="Return to Dashboard">
+            <i class="fas fa-times"></i>
+        </a>
+    </div>
+
+    <!-- Client Banner -->
+    <div class="clientBanner">
+        <div class="clientInfo">
+            <div class="clientAvatar"><%= client.initials %></div>
+            <div class="clientDetails">
+                <h3><%= client.fullName %></h3>
+                <span>Ref: <%= client.referenceNumber %></span>
+            </div>
+        </div>
+        <% if (appointmentStatus === 'confirmed') { %>
+            <span class="statusBadge confirmed">
+                <i class="fas fa-check"></i> Confirmed
+            </span>
+        <% } else { %>
+            <span class="statusBadge selecting">
+                <i class="fas fa-mouse-pointer"></i> Select a Time
+            </span>
+        <% } %>
+    </div>
+
+    <!-- Content Area -->
+    <div class="contentArea">
+
+        <!-- ============================================================= -->
+        <!-- LOCATION BLOCK 3: CALENDAR SELECTION STATE -->
+        <!-- Server-side conditional - no JavaScript state toggle -->
+        <!-- ============================================================= -->
+        <% if (appointmentStatus !== 'confirmed') { %>
+            
+            <div class="introSection">
+                <div class="introIcon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="introContent">
+                    <h3>Choose Your Appointment Time</h3>
+                    <p>Select an available slot (shown in green) for your Immediate Needs Assessment with <strong><%= caseManager.name %></strong>. The assessment typically takes 1.5 - 2 hours.</p>
+                </div>
+            </div>
+
+            <div class="calendarContainer">
+                <!-- Calendar Header with Server-side Navigation -->
+                <div class="calendarHeader">
+                    <div class="calendarNav">
+                        <!-- Previous Month - Server Link -->
+                        <a href="/inaAppointments?clientPin=<%= client.clientPin %>&month=<%= prevMonth %><%= selectedSlotId ? '&selectedSlotId=' + selectedSlotId : '' %>" 
+                           class="calendarNavBtn">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                        <span class="calendarMonth"><%= calendarMonth %> <%= calendarYear %></span>
+                        <!-- Next Month - Server Link -->
+                        <a href="/inaAppointments?clientPin=<%= client.clientPin %>&month=<%= nextMonth %><%= selectedSlotId ? '&selectedSlotId=' + selectedSlotId : '' %>" 
+                           class="calendarNavBtn">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </div>
+                    <div class="calendarLegend">
+                        <div class="legendItem">
+                            <div class="legendDot available"></div>
+                            <span>Available</span>
+                        </div>
+                        <div class="legendItem">
+                            <div class="legendDot unavailable"></div>
+                            <span>Unavailable</span>
+                        </div>
+                        <div class="legendItem">
+                            <div class="legendDot selected"></div>
+                            <span>Selected</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="calendarGrid">
+                    <!-- Day Headers -->
+                    <div class="calendarDayHeader">Mon</div>
+                    <div class="calendarDayHeader">Tue</div>
+                    <div class="calendarDayHeader">Wed</div>
+                    <div class="calendarDayHeader">Thu</div>
+                    <div class="calendarDayHeader">Fri</div>
+                    <div class="calendarDayHeader">Sat</div>
+                    <div class="calendarDayHeader">Sun</div>
+
+                    <!-- Calendar Days - Server-rendered -->
+                    <% calendarDays.forEach(function(day) { %>
+                        <div class="calendarDay<%= day.isOtherMonth ? ' otherMonth' : '' %>">
+                            <div class="dayNumber<%= day.isToday ? ' today' : '' %>"><%= day.dayNumber %></div>
+                            
+                            <!-- Available Slots - Each slot is a server link -->
+                            <% if (day.slots && day.slots.length > 0) { %>
+                                <% day.slots.forEach(function(slot) { %>
+                                    <% if (slot.slotId === selectedSlotId) { %>
+                                        <!-- Currently selected slot -->
+                                        <a href="/inaAppointments?clientPin=<%= client.clientPin %>&month=<%= currentMonth %>" 
+                                           class="timeSlot selected">
+                                            <i class="fas fa-clock"></i> <%= slot.time %>
+                                        </a>
+                                    <% } else { %>
+                                        <!-- Available slot - click to select -->
+                                        <a href="/inaAppointments?clientPin=<%= client.clientPin %>&month=<%= currentMonth %>&selectedSlotId=<%= slot.slotId %>" 
+                                           class="timeSlot available">
+                                            <i class="fas fa-clock"></i> <%= slot.time %>
+                                        </a>
+                                    <% } %>
+                                <% }); %>
+                            <% } %>
+                        </div>
+                    <% }); %>
+                </div>
+
+                <!-- Selection Panel -->
+                <div class="selectionPanel">
+                    <% if (selectedSlotId && selectedSlotData) { %>
+                        <div class="selectedInfo">
+                            <div class="selectedBadge">
+                                <i class="fas fa-calendar-check"></i>
+                                <div class="dateTime">
+                                    <%= selectedSlotData.displayDate %>
+                                    <span><%= selectedSlotData.time %> (approx 2 hours)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Confirm Button - Server-side Form POST -->
+                        <form method="POST" action="/inaAppointments/confirm">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <input type="hidden" name="clientPin" value="<%= client.clientPin %>">
+                            <input type="hidden" name="slotId" value="<%= selectedSlotId %>">
+                            <button type="submit" class="btn btnPrimary">
+                                <i class="fas fa-check"></i> Confirm Appointment
+                            </button>
+                        </form>
+                    <% } else { %>
+                        <div class="selectedInfo empty">
+                            <i class="fas fa-hand-pointer"></i>
+                            Click an available slot to select your appointment time
+                        </div>
+                        <span class="btn btnPrimary disabled">
+                            <i class="fas fa-check"></i> Confirm Appointment
+                        </span>
+                    <% } %>
+                </div>
+            </div>
+
+        <% } else { %>
+
+        <!-- ============================================================= -->
+        <!-- LOCATION BLOCK 4: CONFIRMED STATE -->
+        <!-- Server-rendered when appointmentStatus === 'confirmed' -->
+        <!-- ============================================================= -->
+            <div class="confirmedContainer">
+                <div class="confirmedIcon">
+                    <i class="fas fa-check"></i>
+                </div>
+                <h2>Appointment Confirmed!</h2>
+                <p>Your Case Manager has been notified. We look forward to meeting you.</p>
+
+                <div class="confirmedDetails">
+                    <h4>Your Appointment</h4>
+                    <div class="detailRow">
+                        <i class="fas fa-calendar"></i>
+                        <div>
+                            <div class="label">Date</div>
+                            <div class="value"><%= appointment.displayDate %></div>
+                        </div>
+                    </div>
+                    <div class="detailRow">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <div class="label">Time</div>
+                            <div class="value"><%= appointment.displayTime %></div>
+                        </div>
+                    </div>
+                    <div class="detailRow">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <div class="label">Location</div>
+                            <div class="value"><%= appointment.location || 'Your Home Address' %></div>
+                        </div>
+                    </div>
+                    <div class="detailRow">
+                        <i class="fas fa-user-nurse"></i>
+                        <div>
+                            <div class="label">Case Manager</div>
+                            <div class="value"><%= caseManager.name %></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preparationNotes">
+                    <h4><i class="fas fa-clipboard-list"></i> Preparation Notes</h4>
+                    <ul>
+                        <li><i class="fas fa-check-circle"></i> Please ensure someone can let me in if needed</li>
+                        <li><i class="fas fa-check-circle"></i> To help us focus fully on you during the assessment, we kindly ask that pets are kept in a comfortable separate space</li>
+                        <li><i class="fas fa-check-circle"></i> A quiet environment helps us give you our full attention</li>
+                        <li><i class="fas fa-check-circle"></i> Have any medical documents or prescriptions to hand</li>
+                        <li><i class="fas fa-check-circle"></i> Prepare questions you'd like to discuss</li>
+                        <li><i class="fas fa-check-circle"></i> Assessment takes approximately 1.5 - 2 hours</li>
+                    </ul>
+                </div>
+            </div>
+
+        <% } %>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="pageFooter">
+        <a href="/clientsDashboard?clientPin=<%= client.clientPin %>" class="btn btnSecondary">
+            <i class="fas fa-arrow-left"></i> Return to Dashboard
+        </a>
+    </div>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- NO CLIENT-SIDE JAVASCRIPT FOR STATE/NAVIGATION -->
+<!-- All state managed server-side via query parameters -->
+<!-- ============================================================= -->
+
+</body>
+</html>
+
