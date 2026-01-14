@@ -29,9 +29,6 @@ import fastifyView from '@fastify/view';
 import cookie from '@fastify/cookie';
 import ejs from 'ejs';
 
-// Import session middleware
-import sessionMiddleware, { createSession, SESSION_CONFIG } from './middleware/sessionManager.js';
-
 // ES6 module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -105,9 +102,6 @@ fastify.register(fastifyView, {
   },
   root: path.join(__dirname, 'views')
 });
-
-// B.6: Session Middleware (HTTP-only cookie management)
-fastify.register(sessionMiddleware);
 
 // ==============================================
 // LOCATION BLOCK C: AUTHENTICATION SETUP

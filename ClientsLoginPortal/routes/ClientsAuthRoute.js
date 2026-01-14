@@ -451,7 +451,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
   // Routes to either passwordSetup (new) or passwordVerify (returning)
 
   fastify.post('/clientsAuth/secureLogin', async (request, reply) => {
-    const { password, isNewUser } = request.body;
+    const { password, passwordConfirm, isNewUser, clientPin } = request.body;
     const clientIP = request.ip;
 
     // 📝 GDPR Audit Log
@@ -478,6 +478,17 @@ export default async function clientsAuthRoutes(fastify, opts) {
 
     if (!password) {
       return reply.code(302).redirect('/secureLogin?error=' + encodeURIComponent('Password is required'));
+    }
+
+    // Server-side password match validation (for new users and password reset)
+    if (passwordConfirm && password !== passwordConfirm) {
+      fastify.log.warn({
+        event: 'passwordMismatch',
+        clientPin: clientPin,
+        ip: clientIP,
+        gdprCategory: 'authentication'
+      });
+      return reply.code(302).redirect(`/secureLogin?clientPin=${clientPin || ''}&error=${encodeURIComponent('Passwords do not match. Please try again.')}`);
     }
 
     try {
