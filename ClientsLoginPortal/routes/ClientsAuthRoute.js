@@ -477,7 +477,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
     }
 
     if (!password) {
-      return reply.code(302).redirect('/secureLogin?error=' + encodeURIComponent('Password is required'));
+      return reply.code(302).redirect(`/secureLogin?clientPin=${clientPin || ''}&error=` + encodeURIComponent('Password is required'));
     }
 
     // Server-side password match validation (for new users and password reset)
@@ -540,9 +540,9 @@ export default async function clientsAuthRoutes(fastify, opts) {
         });
 
         // ✅ STEP 5: Redirect to Dashboard with Client PIN parameter
-        const clientPin = ssotData.client?.clientPin;
-        if (!clientPin) {
-          return reply.code(302).redirect('/secureLogin?error=' + encodeURIComponent('Session data incomplete'));
+        const ssotClientPin = ssotData.client?.clientPin;
+        if (!ssotClientPin) {
+          return reply.code(302).redirect(`/secureLogin?clientPin=${clientPin || ''}&error=` + encodeURIComponent('Session data incomplete'));
         }
         return reply.code(302).redirect(`/clientsDashboard?clientPin=${encodeURIComponent(clientPin)}`);
 
@@ -554,7 +554,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
           gdprCategory: 'authentication'
         });
 
-        return reply.code(302).redirect('/secureLogin?error=' + encodeURIComponent(ssotData.error || 'Password operation failed'));
+        return reply.code(302).redirect(`/secureLogin?clientPin=${clientPin || ''}&error=` + encodeURIComponent(ssotData.error || 'Password operation failed'));
       }
 
     } catch (err) {
@@ -576,7 +576,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
 
         if (status === 409) {
           // Password already set up - redirect to verify instead
-          return reply.code(302).redirect('/secureLogin?setupCompleted=true&error=' + encodeURIComponent('Password already set up. Please enter your password.'));
+          return reply.code(302).redirect(`/secureLogin?clientPin=${clientPin || ''}&setupCompleted=true&error=` + encodeURIComponent('Password already set up. Please enter your password.'));
         }
       }
 
@@ -588,7 +588,7 @@ export default async function clientsAuthRoutes(fastify, opts) {
         gdprCategory: 'authentication'
       });
 
-      return reply.code(302).redirect('/secureLogin?error=' + encodeURIComponent('Authentication service unavailable'));
+      return reply.code(302).redirect(`/secureLogin?clientPin=${clientPin || ''}&error=` + encodeURIComponent('Authentication service unavailable'));
     }
   });
   

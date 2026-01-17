@@ -609,8 +609,8 @@
              </div>
            </div>
 
-           <!-- ✅ SERVER-SIDE: Verification Code Modal (shown when ?codeSent=true) -->
-           <% if (typeof query !== 'undefined' && query.codeSent === 'true') { %>
+           <!-- ✅ SERVER-SIDE: Verification Code Modal (shown when codeSent is true) -->
+           <% if (codeSent) { %>
              <div class="modal-overlay" id="codeModal">
                <div class="modal-content">
                  <h3>
@@ -618,7 +618,7 @@
                    Enter Verification Code
                  </h3>
                  <p>Please enter the 6-digit code sent to your email address.</p>
-                 <form method="POST" action="/clientsAuth/verify2fa" id="verifyForm">
+                 <form method="POST" action="/clientsAuth/verify2fa">
                    <input id="emailCodeInput" name="verificationCode" type="text" class="code-input" placeholder="000000" maxlength="6" required autofocus />
                    <div class="modal-buttons">
                      <a href="/clients2fa" class="secondary-button">Cancel</a>
@@ -632,48 +632,18 @@
            <% } %>
 
            <!-- ✅ SERVER-SIDE: Error/Success Messages -->
-           <% if (typeof query !== 'undefined' && query.error) { %>
-             <div class="notification error" id="errorNotification">
-               <%= decodeURIComponent(query.error) %>
+           <% if (error) { %>
+             <div class="notification error">
+               <%= error %>
              </div>
            <% } %>
-           <% if (typeof query !== 'undefined' && query.codeSent === 'true') { %>
-             <div class="notification success" id="successNotification">
-               Verification code sent to your email!
+           <% if (success) { %>
+             <div class="notification success">
+               <%= success %>
              </div>
            <% } %>
          </div>
        </div>
      
-       <!-- ==============================================
-            LOCATION BLOCK D: JAVASCRIPT
-            D.1: Configuration & Credentials
-            D.2: Error Handler Utility
-            D.3: Authentication Service
-            D.4: Event Listeners Initialization
-            D.5: Email Verification Modal
-            D.6: Code Verification Function
-            D.7: Close Modal Function
-            ============================================== -->
-       
-       <script>
-         // ==============================================
-         // ✅ SERVER-SIDE COMPLIANT: Minimal JavaScript
-         // No axios, no fetch, no client-side HTTP calls
-         // ==============================================
-
-         document.addEventListener('DOMContentLoaded', function() {
-           console.log('✅ 2FA Page loaded - Server-side compliant');
-
-           // Auto-hide notifications after 5 seconds
-           const notifications = document.querySelectorAll('.notification');
-           notifications.forEach(notification => {
-             setTimeout(() => {
-               notification.style.opacity = '0';
-               setTimeout(() => notification.remove(), 300);
-             }, 5000);
-           });
-         });
-       </script>
      </body>
      </html>

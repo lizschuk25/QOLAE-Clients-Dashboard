@@ -191,8 +191,13 @@ fastify.get('/clientsLogin', async (request, reply) => {
   if (!clientPin) {
     return reply.view('clientsLogin.ejs', {
       title: 'QOLAE Clients Login',
-      error: request.query.error || null,
-      success: request.query.success || null,
+      clientPin: '',
+      clientEmail: '',
+      clientName: '',
+      isFirstAccess: false,
+      tokenStatus: '',
+      error: request.query.error || '',
+      success: request.query.success || '',
       message: 'Please enter your Client PIN and email address to log in'
     });
   }
@@ -309,85 +314,56 @@ fastify.get('/login', async (request, reply) => {
 // 1.3: 2FA Authentication Page
 // ✅ SSOT COMPLIANT - Uses /session/validate + /check-password-status
 fastify.get('/clients2fa', async (request, reply) => {
-  // Read JWT token from HTTP-only cookie
   const sessionId = request.cookies.qolaeClientToken;
+  const codeSent = request.query.codeSent === 'true';
+  const errorMsg = request.query.error ? decodeURIComponent(request.query.error) : '';
+
+  // Default view data - always pass all variables
+  const viewData = {
+    title: '2-Way Authentication - QOLAE Clients Portal',
+    clientPin: '',
+    clientEmail: '',
+    clientName: '',
+    authToken: '',
+    codeSent: codeSent,
+    error: errorMsg,
+    success: codeSent ? 'Verification code sent to your email!' : ''
+  };
 
   if (!sessionId) {
-    return reply.view('clients2fa.ejs', {
-      title: '2-Way Authentication - QOLAE Clients Portal',
-      error: 'No active session. Please return to login.',
-      clientPin: null,
-      email: null,
-      clientName: null,
-      authToken: null,
-      query: request.query  // ✅ FIX: Added missing query
-    });
+    viewData.error = 'No active session. Please return to login.';
+    return reply.view('clients2fa.ejs', viewData);
   }
 
   try {
-    // ============================================
-    // STEP 1: Validate session via SSOT
-    // ============================================
     const sessionResponse = await axios.post(
       `${process.env.API_BASE_URL || 'https://api.qolae.com'}/auth/clients/session/validate`,
-      { token: sessionId }  // ✅ Changed from sessionToken to token
+      { token: sessionId }
     );
 
     if (!sessionResponse.data.success) {
-      return reply.view('clients2fa.ejs', {
-        title: '2-Way Authentication - QOLAE Clients Portal',
-        error: sessionResponse.data.error || 'Session invalid. Please return to login.',
-        clientPin: null,
-        email: null,
-        clientName: null,
-        authToken: null,
-        query: request.query  // ✅ FIX: Added missing query
-      });
+      viewData.error = sessionResponse.data.error || 'Session invalid. Please return to login.';
+      return reply.view('clients2fa.ejs', viewData);
     }
 
-    // ✅ FIX: SSOT returns 'client', not 'session'
     const client = sessionResponse.data.client;
 
-    fastify.log.info('2FA Session Data:', {
-      clientPin: client.clientPin,
-      email: client.email,
-      sessionId: sessionId
-    });
+    viewData.clientPin = client.clientPin || '';
+    viewData.clientEmail = client.clientEmail || client.email || '';
+    viewData.clientName = client.clientName || '';
+    viewData.authToken = sessionId;
 
-    return reply.view('clients2fa.ejs', {
-      title: '2-Way Authentication - QOLAE Clients Portal',
-      clientPin: client.clientPin,
-      email: client.email,
-      clientName: client.clientName,
-      authToken: sessionId,
-      query: request.query  // ✅ Pass query params for server-side modal control
-    });
+    return reply.view('clients2fa.ejs', viewData);
 
   } catch (error) {
     fastify.log.error('2FA page error:', error.message);
 
-    // Handle axios error responses
     if (error.response?.status === 401) {
-      return reply.view('clients2fa.ejs', {
-        title: '2-Way Authentication - QOLAE Clients Portal',
-        error: 'Session expired. Please return to login.',
-        clientPin: null,
-        email: null,
-        clientName: null,
-        authToken: null,
-        query: request.query  // ✅ FIX: Added missing query
-      });
+      viewData.error = 'Session expired. Please return to login.';
+      return reply.view('clients2fa.ejs', viewData);
     }
 
-    return reply.view('clients2fa.ejs', {
-      title: '2-Way Authentication - QOLAE Clients Portal',
-      error: 'An error occurred. Please return to login.',
-      clientPin: null,
-      email: null,
-      clientName: null,
-      authToken: null,
-      query: request.query  // ✅ FIX: Added missing query
-    });
+    return reply.view('clients2fa.ejs', viewData);
   }
 });
 
