@@ -451,13 +451,14 @@ export default async function clientsAuthRoutes(fastify, opts) {
   // Routes to either passwordSetup (new) or passwordVerify (returning)
 
   fastify.post('/clientsAuth/secureLogin', async (request, reply) => {
-    const { password, passwordConfirm, isNewUser, clientPin } = request.body;
+    const { password, passwordConfirm, isNewUser, reset, clientPin } = request.body;
     const clientIP = request.ip;
 
     // 📝 GDPR Audit Log
     fastify.log.info({
       event: 'secureLoginAttempt',
       isNewUser: isNewUser,
+      reset: reset,
       ip: clientIP,
       timestamp: new Date().toISOString(),
       gdprCategory: 'authentication'
@@ -491,50 +492,53 @@ export default async function clientsAuthRoutes(fastify, opts) {
       return reply.code(302).redirect(`/secureLogin?clientPin=${clientPin || ''}&error=${encodeURIComponent('Passwords do not match. Please try again.')}`);
     }
 
+    const isReset = reset === 'true' || reset === true;
+
     try {
-      // ✅ STEP 2: Determine which SSOT endpoint to call
-      const endpoint = isNewUser === 'true' || isNewUser === true
-        ? '/auth/clients/passwordSetup'
-        : '/auth/clients/passwordVerify';
+      // ✅ STEP 2: Determine which SSOT endpoint to call (3-way: reset / setup / verify)
+      const endpoint = isReset
+        ? '/auth/clients/passwordReset'
+        : (isNewUser === 'true' || isNewUser === true)
+          ? '/auth/clients/passwordSetup'
+          : '/auth/clients/passwordVerify';
 
       console.log(`🔐 Calling SSOT ${endpoint}`);
 
-      // ✅ STEP 3: Call SSOT endpoint with JWT in Authorization header
+      // passwordReset takes PIN in body (no JWT auth header needed)
+      // passwordSetup and passwordVerify use JWT auth header
+      const requestBody = isReset
+        ? { clientPin: clientPin, password: password, ipAddress: clientIP, userAgent: request.headers['user-agent'] }
+        : { password: password, ipAddress: clientIP, userAgent: request.headers['user-agent'] };
+
+      const requestConfig = isReset
+        ? {}
+        : { headers: { 'Authorization': `Bearer ${jwtToken}` } };
+
       const ssotResponse = await axios.post(
         `${process.env.API_BASE_URL || 'https://api.qolae.com'}${endpoint}`,
-        {
-          password: password,
-          ipAddress: clientIP,
-          userAgent: request.headers['user-agent']
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${jwtToken}`  // ✅ JWT in Authorization header
-          }
-        }
+        requestBody,
+        requestConfig
       );
 
       const ssotData = ssotResponse.data;
 
       if (ssotData.success) {
-        // ============================================
-        // STEP 4: UPDATE COOKIE WITH NEW JWT (if provided)
-        // ============================================
         if (ssotData.accessToken) {
           reply.setCookie('qolaeClientToken', ssotData.accessToken, {
             path: '/',
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 60 * 60 * 24  // 24 hours
+            maxAge: 60 * 60 * 24
           });
 
-          console.log(`🔑 Updated JWT cookie after password ${isNewUser ? 'setup' : 'verify'}`);
+          const opType = isReset ? 'reset' : (isNewUser ? 'setup' : 'verify');
+          console.log(`🔑 Updated JWT cookie after password ${opType}`);
         }
 
-        // 📝 GDPR Audit: Successful password operation
+        const eventName = isReset ? 'passwordResetSuccess' : (isNewUser ? 'passwordSetupSuccess' : 'passwordVerifySuccess');
         fastify.log.info({
-          event: isNewUser ? 'passwordSetupSuccess' : 'passwordVerifySuccess',
+          event: eventName,
           clientPin: ssotData.client?.clientPin,
           gdprCategory: 'authentication'
         });
@@ -564,13 +568,20 @@ export default async function clientsAuthRoutes(fastify, opts) {
         const errorData = err.response.data;
 
         if (status === 401) {
+          const apiError = errorData.error || '';
+          const isInvalidPassword = apiError.toLowerCase().includes('invalid password');
+
           fastify.log.warn({
-            event: 'secureLoginInvalidSession',
-            error: errorData.error,
+            event: isInvalidPassword ? 'secureLoginInvalidPassword' : 'secureLoginInvalidSession',
+            error: apiError,
             ip: clientIP,
             gdprCategory: 'authentication'
           });
 
+          if (isInvalidPassword) {
+            const resetParam = isReset ? '&reset=true' : '';
+            return reply.code(302).redirect('/secureLogin?clientPin=' + encodeURIComponent(clientPin || '') + resetParam + '&error=' + encodeURIComponent('Invalid password. Please try again.'));
+          }
           return reply.code(302).redirect('/clientsLogin?error=' + encodeURIComponent('Session expired. Please click your PIN link again.'));
         }
 
