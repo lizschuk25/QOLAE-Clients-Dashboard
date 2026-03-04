@@ -562,34 +562,8 @@ fastify.post('/logout', async (request, reply) => {
 
 // ==============================================
 // LOCATION BLOCK 2: HELPER FUNCTIONS
-// 2.1: Client System Validation
+// (checkClientInSystem removed — Session 127, dead code, auth uses SSOT endpoints directly)
 // ==============================================
-
-// 2.1: Helper function to check client in system (via SSOT API)
-const checkClientInSystem = async (clientPin) => {
-  try {
-    const response = await axios.get(`/api/client/validate/${clientPin}`);
-    const result = response.data;
-
-    if (result.success && result.client) {
-      fastify.log.info(`✅ Client found via API: ${result.client.clientName} (${result.client.clientPin})`);
-      return {
-        clientPin: result.client.clientPin,
-        email: result.client.email,
-        clientName: result.client.clientName
-      };
-    } else {
-      fastify.log.warn(`❌ Client not found via API: ${clientPin}`);
-      return null;
-    }
-  } catch (error) {
-    fastify.log.error('Error checking client via API:', error);
-    return null;
-  }
-};
-
-// Make checkClientInSystem available to routes
-fastify.decorate('checkClientInSystem', checkClientInSystem);
 
 // ==============================================
 // LOCATION BLOCK 3: EXTERNAL ROUTE MODULES
