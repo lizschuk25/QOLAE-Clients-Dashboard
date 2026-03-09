@@ -98,6 +98,27 @@ await server.register(fastifyView, {
 });
 
 // ==============================================
+// PT-9: GLOBAL SESSION VALIDATION — preHandler
+// Protects ALL routes except /public/ static assets
+// ==============================================
+server.addHook('preHandler', async (request, reply) => {
+    const urlPath = request.url.split('?')[0];
+
+    if (urlPath.startsWith('/public/')) {
+        return;
+    }
+
+    try {
+        await request.jwtVerify();
+        if (request.user.role !== 'client') {
+            return reply.redirect('https://clients.qolae.com/clientsLogin');
+        }
+    } catch (err) {
+        return reply.redirect('https://clients.qolae.com/clientsLogin');
+    }
+});
+
+// ==============================================
 // LOCATION BLOCK D: CONSTANTS & CONFIGURATION
 // ==============================================
 const SSOT_BASE_URL = process.env.API_BASE_URL || 'https://api.qolae.com';
