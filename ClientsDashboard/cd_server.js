@@ -24,6 +24,7 @@ import fastifyCors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import fastifyCookie from '@fastify/cookie';
 import fastifyMultipart from '@fastify/multipart';
+import ssotFetch from './utils/ssotFetch.js';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -64,6 +65,8 @@ await server.register(fastifyCookie);
 // 3. JWT Authentication (must match LoginPortal secret)
 await server.register(fastifyJwt, {
     secret: process.env.CLIENTS_LOGIN_JWT_SECRET,
+    sign: { algorithm: 'HS256' },
+    verify: { algorithms: ['HS256'] },
     cookie: {
         cookieName: 'qolaeClientToken',
         signed: false,
@@ -121,7 +124,7 @@ server.addHook('preHandler', async (request, reply) => {
 // ==============================================
 // LOCATION BLOCK D: CONSTANTS & CONFIGURATION
 // ==============================================
-const SSOT_BASE_URL = process.env.API_BASE_URL || 'https://api.qolae.com';
+// SSOT_BASE_URL now centralised in utils/ssotFetch.js
 
 // ==============================================
 // LOCATION BLOCK E: AUTHENTICATION DECORATOR
@@ -156,7 +159,7 @@ async function buildClientBootstrapData(clientPin) {
         console.log(`📊 [ClientsDashboard] Building bootstrap data for Client PIN: ${clientPin}`);
 
         // Get stored JWT token from SSOT
-        const tokenResponse = await fetch(`${SSOT_BASE_URL}/auth/clients/getStoredToken?clientPin=${clientPin}`, {
+        const tokenResponse = await ssotFetch(`/auth/clients/getStoredToken?clientPin=${clientPin}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -170,7 +173,7 @@ async function buildClientBootstrapData(clientPin) {
         const { accessToken } = tokenData;
 
         // Call SSOT bootstrap endpoint with stored JWT token
-        const bootstrapResponse = await fetch(`${SSOT_BASE_URL}/clients/workspace/bootstrap`, {
+        const bootstrapResponse = await ssotFetch(`/clients/workspace/bootstrap`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -357,7 +360,6 @@ server.get('/clientsDashboard', async (req, reply) => {
             progress: bootstrapData.progress,
             features: bootstrapData.features,
             caseInfo: bootstrapData.caseInfo,
-            ssotBaseUrl: SSOT_BASE_URL,
             bootstrapData: JSON.stringify(bootstrapData),
             // Preview mode data (server-side)
             showPreview: previewData !== null,
@@ -571,11 +573,10 @@ server.post('/inaAppointments/confirm', async (req, reply) => {
         console.log('[ClientsDashboard] INA Appointment confirmation for:', clientPin);
 
         // Submit confirmation to SSOT
-        const response = await fetch(`${SSOT_BASE_URL}/clients/workspace/appointments/confirm`, {
+        const response = await ssotFetch(`/clients/workspace/appointments/confirm`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.API_INTERNAL_KEY}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 clientPin: clientPin,

@@ -130,7 +130,7 @@ const authenticateToken = async (request, reply) => {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     request.user = decoded;
   } catch (err) {
     return reply.code(403).send({ error: 'Invalid token' });

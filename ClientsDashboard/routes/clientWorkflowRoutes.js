@@ -11,7 +11,7 @@
 // ==============================================
 // LOCATION BLOCK A: CONFIGURATION
 // ==============================================
-const SSOT_BASE_URL = process.env.SSOT_BASE_URL || 'https://api.qolae.com';
+import ssotFetch from '../utils/ssotFetch.js';
 
 // Preview cache - stores form data temporarily for server-side preview flow
 // Key: clientPin, Value: { formData, pdfBase64, timestamp }
@@ -174,7 +174,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             console.log('[ClientWorkflow] All consents validated, calling SSOT API');
 
             // Call SSOT API to save consent
-            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/consent/sign', {
+            const apiResponse = await ssotFetch('/api/clients/consent/sign', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -254,7 +254,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
                 declarationConsent: formData.declarationConsent === 'yes'
             };
 
-            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/consent/preview', {
+            const apiResponse = await ssotFetch('/api/clients/consent/preview', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -338,7 +338,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
         const { clientPin } = request.user;
 
         try {
-            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/notifications', {
+            const apiResponse = await ssotFetch('/api/clients/notifications', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pin: clientPin })
@@ -379,7 +379,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
         const { clientPin } = request.user;
 
         try {
-            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/notifications/read', {
+            const apiResponse = await ssotFetch('/api/clients/notifications/read', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pin: clientPin, notificationId: id })
@@ -407,7 +407,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
         const { clientPin } = request.user;
 
         try {
-            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/notifications/count', {
+            const apiResponse = await ssotFetch('/api/clients/notifications/count', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pin: clientPin })
@@ -450,11 +450,9 @@ export default async function clientWorkflowRoutes(fastify, options) {
             }
 
             // Call SSOT API endpoint for signed consent PDF
-            const apiUrl = `${SSOT_BASE_URL}/api/clients/consent/view`;
+            console.log('[ClientWorkflow] Calling SSOT API: /api/clients/consent/view');
 
-            console.log('[ClientWorkflow] Calling SSOT API:', apiUrl);
-
-            const pdfResponse = await fetch(apiUrl, {
+            const pdfResponse = await ssotFetch('/api/clients/consent/view', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${clientToken}`,
@@ -510,7 +508,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
 
         try {
             // Check if Documents Library access is enabled via API
-            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/documentsLibrary/access', {
+            const apiResponse = await ssotFetch('/api/clients/documentsLibrary/access', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pin: clientPin })
@@ -551,7 +549,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
 
         try {
             // Check if report is available via API
-            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/report/access', {
+            const apiResponse = await ssotFetch('/api/clients/report/access', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pin: clientPin })
@@ -591,7 +589,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
         const { clientPin } = request.user;
 
         try {
-            const apiResponse = await fetch(SSOT_BASE_URL + '/api/clients/profile', {
+            const apiResponse = await ssotFetch('/api/clients/profile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pin: clientPin })

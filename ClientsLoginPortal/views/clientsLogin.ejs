@@ -264,15 +264,26 @@
          <div class="login-card">
            <h2 class="login-title">QOLAE Clients Login</h2>
 
-           <!-- C.4: Error/Success Messages -->
-           <div id="errorMessage" class="error-message"></div>
-           <div id="successMessage" class="success-message"></div>
+           <!-- C.4: Error/Success Messages (Server-Side EJS) -->
+           <% if (error) { %>
+             <div class="error-message"><%= error %></div>
+           <% } %>
+           <% if (success) { %>
+             <div class="success-message"><%= success %></div>
+           <% } %>
 
            <!-- PIN Help -->
-           <div class="pin-help">
-             <strong>Ready for 2-way Authentication</strong><br>
-             Enter your Client PIN and email to access your workspace
-           </div>
+           <% if (clientPin) { %>
+             <div class="pin-help">
+               <strong>PIN Auto-filled!</strong><br>
+               Your Client PIN has been loaded. Please enter your email address to continue.
+             </div>
+           <% } else { %>
+             <div class="pin-help">
+               <strong>Ready for 2-way Authentication</strong><br>
+               Enter your Client PIN and email to access your workspace
+             </div>
+           <% } %>
 
            <!-- C.5: Login Form -->
            <!-- ✅ SERVER-SIDE FORM: No fetch(), posts directly to backend -->
