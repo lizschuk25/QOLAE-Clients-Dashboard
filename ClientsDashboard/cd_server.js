@@ -79,7 +79,7 @@ await server.register(fastifyFormbody);
 // 5. Multipart (for signature uploads)
 await server.register(fastifyMultipart, {
     limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB max
+        fileSize: 500 * 1024 * 1024, // 500MB max
     },
 });
 
