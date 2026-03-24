@@ -156,7 +156,7 @@ server.decorate('authenticateClient', async function(request, reply) {
  */
 async function buildClientBootstrapData(clientPin) {
     try {
-        console.log(`📊 [ClientsDashboard] Building bootstrap data for Client PIN: ${clientPin}`);
+        server.log.info({ event: 'buildingBootstrap', clientPin });
 
         // Get stored JWT token from SSOT
         const tokenResponse = await ssotFetch(`/auth/clients/getStoredToken?clientPin=${clientPin}`, {
@@ -165,7 +165,7 @@ async function buildClientBootstrapData(clientPin) {
         });
 
         if (!tokenResponse.ok) {
-            console.warn(`⚠️ [ClientsDashboard] No valid JWT token found for Client PIN: ${clientPin}`);
+            server.log.warn({ event: 'noValidJwt', clientPin });
             return null;
         }
 
@@ -183,15 +183,15 @@ async function buildClientBootstrapData(clientPin) {
 
         if (bootstrapResponse.ok) {
             const bootstrapData = await bootstrapResponse.json();
-            console.log(`✅ [ClientsDashboard] Bootstrap data fetched successfully for ${clientPin}`);
+            server.log.info({ event: 'bootstrapSuccess', clientPin });
             return bootstrapData;
         } else {
-            console.error(`❌ [ClientsDashboard] SSOT bootstrap failed:`, bootstrapResponse.status);
+            server.log.error({ event: 'bootstrapFailed', status: bootstrapResponse.status });
             return null;
         }
 
     } catch (error) {
-        console.error(`❌ [ClientsDashboard] Bootstrap error for ${clientPin}:`, error.message);
+        server.log.error({ event: 'bootstrapError', clientPin, error: error.message });
         return null;
     }
 }
@@ -225,7 +225,7 @@ server.get('/clientsDashboard', async (req, reply) => {
     if (showPreview === 'true') {
         if (previewCache.has(clientPin)) {
             previewData = previewCache.get(clientPin);
-            console.log(`📄 [ClientsDashboard] Preview mode for ${clientPin}`);
+            server.log.info({ event: 'previewMode', clientPin });
         }
     }
 
@@ -233,22 +233,22 @@ server.get('/clientsDashboard', async (req, reply) => {
     if (redoSignature === 'true') {
         if (previewCache.has(clientPin)) {
             redoSignatureData = previewCache.get(clientPin);
-            console.log(`✍️ [ClientsDashboard] Redo signature mode for ${clientPin}`);
+            server.log.info({ event: 'redoSignatureMode', clientPin });
         }
     }
 
     try {
-        console.log(`🔍 [ClientsDashboard] Dashboard route called with Client PIN: ${clientPin}`);
+        server.log.info({ event: 'dashboardRoute', clientPin });
 
         // SINGLE SOURCE OF TRUTH - SSOT Bootstrap only
         const bootstrapData = await buildClientBootstrapData(clientPin);
 
         if (!bootstrapData || !bootstrapData.valid) {
-            console.error(`❌ Invalid bootstrap for Client PIN: ${clientPin}`);
+            server.log.error({ event: 'invalidBootstrap', clientPin });
             return reply.code(401).send({ error: 'Invalid session - please login again' });
         }
 
-        console.log(`✅ Dashboard loading for ${bootstrapData.user.clientName} (${clientPin})`);
+        server.log.info({ event: 'dashboardLoading', clientName: bootstrapData.user.clientName, clientPin });
 
         // ==========================================
         // SERVER-SIDE DATA TRANSFORMATION
@@ -336,7 +336,7 @@ server.get('/clientsDashboard', async (req, reply) => {
         const csrfToken = server.jwt.sign({
             csrf: true,
             clientPin: clientPin,
-            timestamp: Date.now()
+            timestamp: new Date().toISOString()
         });
 
         // 7. NOTIFICATIONS (from SSOT bootstrap)
@@ -372,7 +372,7 @@ server.get('/clientsDashboard', async (req, reply) => {
         });
 
     } catch (error) {
-        console.error('❌ Error loading dashboard:', error);
+        server.log.error({ event: 'dashboardLoadError', error: error.message });
         return reply.code(500).send({ error: 'Failed to load dashboard' });
     }
 });
@@ -419,7 +419,7 @@ server.get('/inaAppointments', async (req, reply) => {
         // Query params for server-side state (month as YYYY-MM format)
         const { month, selectedSlotId } = req.query;
 
-        console.log('[ClientsDashboard] INA Appointments accessed by:', clientPin);
+        server.log.info({ event: 'inaAppointmentsAccess', clientPin });
 
         // Use buildClientBootstrapData helper (handles JWT token retrieval from SSOT)
         const bootstrapData = await buildClientBootstrapData(clientPin);
@@ -532,7 +532,7 @@ server.get('/inaAppointments', async (req, reply) => {
         const csrfToken = server.jwt.sign({
             csrf: true,
             clientPin: clientPin,
-            timestamp: Date.now()
+            timestamp: new Date().toISOString()
         });
 
         return reply.view('inaAppointments', {
@@ -552,7 +552,7 @@ server.get('/inaAppointments', async (req, reply) => {
         });
 
     } catch (error) {
-        console.error('[ClientsDashboard] INA Appointments error:', error.message);
+        server.log.error({ event: 'inaAppointmentsError', error: error.message });
         return reply.redirect('/clientsDashboard?error=Session expired');
     }
 });
@@ -570,7 +570,7 @@ server.post('/inaAppointments/confirm', async (req, reply) => {
         await req.jwtVerify();
         const { clientPin, slotId } = req.body;
 
-        console.log('[ClientsDashboard] INA Appointment confirmation for:', clientPin);
+        server.log.info({ event: 'appointmentConfirmation', clientPin });
 
         // Submit confirmation to SSOT
         const response = await ssotFetch(`/clients/workspace/appointments/confirm`, {
@@ -586,17 +586,17 @@ server.post('/inaAppointments/confirm', async (req, reply) => {
         });
 
         if (!response.ok) {
-            console.error('[ClientsDashboard] Appointment confirmation failed');
+            server.log.error({ event: 'appointmentConfirmationFailed' });
             return reply.redirect('/inaAppointments?error=Confirmation failed');
         }
 
-        console.log(`✅ [ClientsDashboard] INA appointment confirmed for ${clientPin}`);
+        server.log.info({ event: 'appointmentConfirmed', clientPin });
 
         // Redirect back to show confirmed state
         return reply.redirect('/inaAppointments');
 
     } catch (error) {
-        console.error('[ClientsDashboard] Appointment confirmation error:', error.message);
+        server.log.error({ event: 'appointmentConfirmationError', error: error.message });
         return reply.redirect('/clientsDashboard?error=Session expired');
     }
 });
@@ -609,13 +609,13 @@ server.get('/documentsLibrary', async (req, reply) => {
         await req.jwtVerify();
         const { clientPin, clientName } = req.user;
 
-        console.log('[ClientsDashboard] Documents Library accessed by:', clientPin);
+        server.log.info({ event: 'documentsLibraryAccess', clientPin });
 
         // Use buildClientBootstrapData helper (handles JWT token retrieval from SSOT)
         const bootstrapData = await buildClientBootstrapData(clientPin);
 
         if (!bootstrapData) {
-            console.error('[ClientsDashboard] Failed to fetch bootstrap data for documents library');
+            server.log.error({ event: 'documentsLibraryBootstrapFailed' });
             return reply.redirect('/clientsDashboard?error=Failed to load documents');
         }
 
@@ -626,7 +626,7 @@ server.get('/documentsLibrary', async (req, reply) => {
         const csrfToken = server.jwt.sign({
             csrf: true,
             clientPin: clientPin,
-            timestamp: Date.now()
+            timestamp: new Date().toISOString()
         });
 
         // Render documents library page
@@ -640,7 +640,7 @@ server.get('/documentsLibrary', async (req, reply) => {
         });
 
     } catch (error) {
-        console.error('[ClientsDashboard] Documents Library error:', error.message);
+        server.log.error({ event: 'documentsLibraryError', error: error.message });
         return reply.redirect('/clientsDashboard?error=Session expired');
     }
 });
@@ -658,7 +658,7 @@ server.get('/finalReport', async (req, reply) => {
         await req.jwtVerify();
         const { clientPin, clientName } = req.user;
 
-        console.log('[ClientsDashboard] Final Report accessed by:', clientPin);
+        server.log.info({ event: 'finalReportAccess', clientPin });
 
         // Use buildClientBootstrapData helper (handles JWT token retrieval from SSOT)
         const bootstrapData = await buildClientBootstrapData(clientPin);
@@ -696,7 +696,7 @@ server.get('/finalReport', async (req, reply) => {
         });
 
     } catch (error) {
-        console.error('[ClientsDashboard] Final Report error:', error.message);
+        server.log.error({ event: 'finalReportError', error: error.message });
         return reply.redirect('/clientsDashboard?error=Session expired');
     }
 });
@@ -725,7 +725,7 @@ server.get('/health', async (request, reply) => {
  */
 server.post('/clientsAuth/logout', async (request, reply) => {
     try {
-        console.log('🔒 [ClientsDashboard] Logout request received');
+        server.log.info({ event: 'logoutRequest' });
 
         // Clear the JWT cookie
         reply.clearCookie('qolaeClientToken', {
@@ -735,14 +735,14 @@ server.post('/clientsAuth/logout', async (request, reply) => {
             sameSite: 'strict'
         });
 
-        console.log('✅ [ClientsDashboard] Cookie cleared, redirecting to login');
+        server.log.info({ event: 'logoutComplete' });
 
         // Redirect to ClientsLoginPortal
         const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clientsLogin';
         return reply.redirect(loginUrl);
 
     } catch (error) {
-        console.error('❌ [ClientsDashboard] Logout error:', error.message);
+        server.log.error({ event: 'logoutError', error: error.message });
         const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clientsLogin';
         return reply.redirect(loginUrl);
     }
@@ -777,28 +777,7 @@ const start = async () => {
 
         await server.listen({ port, host });
 
-        console.log('');
-        console.log('╔══════════════════════════════════════════════════╗');
-        console.log('║   👤 QOLAE CLIENTS DASHBOARD STARTED             ║');
-        console.log('╚══════════════════════════════════════════════════╝');
-        console.log('');
-        console.log(`📍 Server running at: http://${host}:${port}`);
-        console.log(`🌍 Environment: ${process.env.NODE_ENV || 'production'}`);
-        console.log(`🔐 Auth: JWT via LoginPortal (Port 3014)`);
-        console.log(`🗄️  Database: qolae_lawyers (consentForms table)`);
-        console.log(`📡 WebSocket: Port 3011 (qolae-wsclients)`);
-        console.log('');
-        console.log('Available Routes:');
-        console.log('  🏠 Dashboard:     /clientsDashboard');
-        console.log('  📝 Consent:       /consent/*');
-        console.log('  📅 Appointments:  /appointment/*');
-        console.log('  📁 Documents:     /documents/*');
-        console.log('  📊 Report:        /report/*');
-        console.log('  🔔 Notifications: /api/notifications/*');
-        console.log('  ❤️  Health:        /health');
-        console.log('');
-        console.log('🔐 All routes require authentication via LoginPortal');
-        console.log('');
+        server.log.info(`ClientsDashboard running at http://${host}:${port}`);
 
     } catch (err) {
         server.log.error(err);

@@ -10,7 +10,7 @@ const SSOT_BASE_URL = process.env.SSOT_BASE_URL || 'https://api.qolae.com';
 
 /**
  * ssotFetch — authenticated fetch to SSOT API
- * @param {string} path — API path (e.g. '/api/clients/consent/sign')
+ * @param {string} path — API path (e.g. '/api/lawyers/consent/workflow?pin=ABC')
  * @param {object} options — standard fetch options (method, headers, body, etc.)
  * @returns {Promise<Response>} — standard fetch Response
  */

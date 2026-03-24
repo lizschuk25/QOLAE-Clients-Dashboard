@@ -22,12 +22,13 @@ import { dirname } from 'path';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
-import axios from 'axios';
+import ssotFetch from './utils/ssotFetch.js';
 import cors from '@fastify/cors';
 import formbody from '@fastify/formbody';
 import fastifyView from '@fastify/view';
 import cookie from '@fastify/cookie';
 import ejs from 'ejs';
+import rateLimit from '@fastify/rate-limit';
 
 // ES6 module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -37,7 +38,7 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: `${__dirname}/.env` });
 
 // A.3: Server Initialization
-const fastify = Fastify({ logger: true });
+const fastify = Fastify({ logger: true, trustProxy: true });
 
 // ==============================================
 // LOCATION BLOCK B: MIDDLEWARE & PLUGINS
@@ -81,6 +82,11 @@ fastify.register(cookie, {
   parseOptions: {}
 });
 
+// B.3.2: Rate Limiting Plugin (per-route config only, no global default)
+await fastify.register(rateLimit, {
+  global: false
+});
+
   // B.4: Static File Serving (GDPR compliant)
   const staticRoots = [path.join(__dirname, 'public')];
   const staticPrefixes = ['/public/'];
@@ -101,6 +107,21 @@ fastify.register(fastifyView, {
     ejs: ejs
   },
   root: path.join(__dirname, 'views')
+});
+
+// B.6: Rate Limit Error Handler (429 → server-side redirect)
+fastify.setErrorHandler((error, request, reply) => {
+  if (error.statusCode === 429) {
+    const redirectMap = {
+      '/clientsAuth/login': '/clientsLogin?error=' + encodeURIComponent('Too many login attempts. Please try again in 15 minutes.'),
+      '/clientsAuth/requestEmailCode': '/clients2fa?error=' + encodeURIComponent('Too many code requests. Please wait 10 minutes.'),
+      '/clientsAuth/verify2fa': '/clients2fa?error=' + encodeURIComponent('Too many verification attempts. Please wait 10 minutes.'),
+      '/clientsAuth/secureLogin': '/secureLogin?error=' + encodeURIComponent('Too many password attempts. Please try again in 15 minutes.')
+    };
+    const redirectUrl = redirectMap[request.url.split('?')[0]] || '/clientsLogin?error=' + encodeURIComponent('Too many requests. Please try again later.');
+    return reply.code(302).redirect(redirectUrl);
+  }
+  reply.send(error);
 });
 
 // ==============================================
@@ -211,28 +232,44 @@ fastify.get('/clientsLogin', async (request, reply) => {
   // ═══════════════════════════════════════════════════════════
 
   try {
-    console.log(`🔒 [SSOT] PIN Access request for: ${clientPin}`);
+    fastify.log.info({ event: 'pinAccessRequest', clientPin });
 
     // ============================================
     // STEP 1: CALL SSOT ENDPOINT (replaces 7 violations)
     // ============================================
     const deviceFingerprint = generateDeviceFingerprint(request);
 
-    const ssotResponse = await axios.post(`${process.env.API_BASE_URL || 'https://api.qolae.com'}/auth/clients/pinAccess`, {
-      clientPin: clientPin,
-      deviceFingerprint: deviceFingerprint,
-      ipAddress: clientIP,
-      userAgent: userAgent
+    const ssotResponse = await ssotFetch('/auth/clients/pinAccess', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientPin: clientPin,
+        deviceFingerprint: deviceFingerprint,
+        ipAddress: clientIP,
+        userAgent: userAgent
+      })
     });
 
-    const ssotData = ssotResponse.data;
+    const ssotData = await ssotResponse.json();
+
+    if (!ssotResponse.ok) {
+      if (ssotResponse.status === 401) {
+        return reply.code(404).send('Invalid Client PIN');
+      }
+      if (ssotResponse.status === 403) {
+        return reply.code(403).send(`
+          <h2>Access Revoked</h2>
+          <p>Your access has been revoked. Contact support@qolae.com</p>
+        `);
+      }
+      return reply.code(500).send('Internal server error');
+    }
 
     if (!ssotData.success) {
-      console.log(`[SSOT] PIN Access failed: ${ssotData.error}`);
       return reply.code(401).send('Invalid Client PIN');
     }
 
-    console.log(`[SSOT] PIN Access successful for: ${clientPin}, isNew: ${ssotData.isNewClient}`);
+    fastify.log.info({ event: 'pinAccessSuccess', clientPin, isNewClient: ssotData.isNewClient });
 
     // ============================================
     // STEP 2: STORE IN REQUEST SESSION
@@ -282,24 +319,7 @@ fastify.get('/clientsLogin', async (request, reply) => {
     });
 
   } catch (error) {
-    console.error('❌ [SSOT] ClientsLogin error:', error.message);
-
-    // Handle axios error responses
-    if (error.response) {
-      const status = error.response.status;
-      const errorData = error.response.data;
-
-      if (status === 401) {
-        return reply.code(404).send('Invalid Client PIN');
-      }
-      if (status === 403) {
-        return reply.code(403).send(`
-          <h2>Access Revoked</h2>
-          <p>Your access has been revoked. Contact support@qolae.com</p>
-        `);
-      }
-    }
-
+    fastify.log.error({ event: 'clientsLoginError', error: error.message });
     return reply.code(500).send('Internal server error');
   }
 });
@@ -336,17 +356,19 @@ fastify.get('/clients2fa', async (request, reply) => {
   }
 
   try {
-    const sessionResponse = await axios.post(
-      `${process.env.API_BASE_URL || 'https://api.qolae.com'}/auth/clients/session/validate`,
-      { token: sessionId }
-    );
+    const sessionRes = await ssotFetch('/auth/clients/session/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: sessionId })
+    });
+    const sessionData = await sessionRes.json();
 
-    if (!sessionResponse.data.success) {
-      viewData.error = sessionResponse.data.error || 'Session invalid. Please return to login.';
+    if (!sessionRes.ok || !sessionData.success) {
+      viewData.error = sessionData.error || 'Session invalid. Please return to login.';
       return reply.view('clients2fa.ejs', viewData);
     }
 
-    const client = sessionResponse.data.client;
+    const client = sessionData.client;
 
     viewData.clientPin = client.clientPin || '';
     viewData.clientEmail = client.clientEmail || client.email || '';
@@ -357,12 +379,7 @@ fastify.get('/clients2fa', async (request, reply) => {
 
   } catch (error) {
     fastify.log.error('2FA page error:', error.message);
-
-    if (error.response?.status === 401) {
-      viewData.error = 'Session expired. Please return to login.';
-      return reply.view('clients2fa.ejs', viewData);
-    }
-
+    viewData.error = 'An error occurred. Please return to login.';
     return reply.view('clients2fa.ejs', viewData);
   }
 });
@@ -388,7 +405,7 @@ fastify.get('/secureLogin', async (req, reply) => {
 
   // Check for JWT token (set at PIN access stage)
   if (!token) {
-    console.log('[SecureLogin] No JWT token found, redirecting to login');
+    fastify.log.warn({ event: 'secureLoginNoToken', clientPin });
     return reply.redirect(`/clientsLogin?clientPin=${clientPin}&error=sessionExpired`);
   }
 
@@ -397,22 +414,19 @@ fastify.get('/secureLogin', async (req, reply) => {
     // STEP 1: CALL SSOT API FOR CLIENT STATUS
     // ============================================
 
-    const statusResponse = await axios.get(
-      `${process.env.API_BASE_URL || 'https://api.qolae.com'}/auth/clients/loginStatus`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+    const statusRes = await ssotFetch('/auth/clients/loginStatus', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
       }
-    );
+    });
+    const statusData = await statusRes.json();
 
-    if (!statusResponse.data.success) {
-      console.log('[SecureLogin] SSOT status check failed:', statusResponse.data.error);
+    if (!statusRes.ok || !statusData.success) {
       return reply.redirect(`/clientsLogin?clientPin=${clientPin}&error=statusCheckFailed`);
     }
 
-    const client = statusResponse.data.client;
-    console.log(`[SecureLogin] SSOT status retrieved for: ${client.clientPin}`);
+    const client = statusData.client;
 
     // ============================================
     // STEP 2: DETERMINE USER STATUS
@@ -476,21 +490,25 @@ fastify.get('/secureLogin', async (req, reply) => {
     // STEP 5: SECURITY LOGGING (SSOT COMPLIANT)
     // ============================================
 
-    await axios.post(`${process.env.API_BASE_URL || 'https://api.qolae.com'}/auth/clients/securityLog`, {
-      clientPin: clientPin,
-      eventType: 'secureLoginPageAccessed',
-      eventStatus: 'success',
-      details: {
-        uiState: uiState,
-        progressPercentage: progressPercentage,
-        completedSteps: completedSteps,
-        isPasswordReset: isPasswordReset,
-        source: 'ClientsLoginPortal'
-      },
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-      riskScore: 0
-    }).catch(err => console.log('[SecureLogin] Security log failed (non-blocking):', err.message));
+    await ssotFetch('/auth/clients/securityLog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientPin: clientPin,
+        eventType: 'secureLoginPageAccessed',
+        eventStatus: 'success',
+        details: {
+          uiState: uiState,
+          progressPercentage: progressPercentage,
+          completedSteps: completedSteps,
+          isPasswordReset: isPasswordReset,
+          source: 'ClientsLoginPortal'
+        },
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        riskScore: 0
+      })
+    }).catch(() => {});
 
     // ============================================
     // STEP 6: RENDER WITH SMART DATA
@@ -527,18 +545,22 @@ fastify.get('/secureLogin', async (req, reply) => {
     });
 
   } catch (error) {
-    console.error('❌ SecureLogin SSOT error:', error.message);
+    fastify.log.error({ event: 'secureLoginError', error: error.message });
 
     // Log error via SSOT endpoint (non-blocking)
-    await axios.post(`${process.env.API_BASE_URL || 'https://api.qolae.com'}/auth/clients/securityLog`, {
-      clientPin: clientPin,
-      eventType: 'secureLoginError',
-      eventStatus: 'failure',
-      details: { error: error.message, source: 'ClientsLoginPortal' },
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-      riskScore: 30
-    }).catch(err => console.log('[SecureLogin] Error log failed (non-blocking):', err.message));
+    await ssotFetch('/auth/clients/securityLog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientPin: clientPin,
+        eventType: 'secureLoginError',
+        eventStatus: 'failure',
+        details: { error: error.message, source: 'ClientsLoginPortal' },
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        riskScore: 30
+      })
+    }).catch(() => {});
 
     return reply.redirect(`/clientsLogin?clientPin=${clientPin}&error=secureLoginFailed`);
   }
@@ -591,7 +613,7 @@ const start = async () => {
       host: '0.0.0.0'
     });
     const address = fastify.server.address();
-    console.log(`🚀 ClientsLoginPortal bound to: ${address.address}:${address.port}`);
+    fastify.log.info(`ClientsLoginPortal bound to: ${address.address}:${address.port}`);
     fastify.log.info(`Clients Login Portal running on port ${fastify.server.address().port}`);
   } catch (err) {
     fastify.log.error(err);

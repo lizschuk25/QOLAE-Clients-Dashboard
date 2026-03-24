@@ -106,19 +106,19 @@ export default async function clientWorkflowRoutes(fastify, options) {
             const { clientPin, clientName } = request.user;
             const formData = request.body;
 
-            console.log('[ClientWorkflow] Consent sign request for client PIN:', clientPin);
+            fastify.log.info({ event: 'consentSignRequest', clientPin });
 
             let signatureData;
             let consentData;
 
             // Check if this is a confirmation from preview flow
             if (formData.confirmFromPreview === 'true') {
-                console.log('[ClientWorkflow] Confirm from preview flow for:', clientPin);
+                fastify.log.info({ event: 'confirmFromPreview', clientPin });
 
                 // Get cached data from preview
                 const cachedPreview = previewCache.get(clientPin);
                 if (!cachedPreview) {
-                    console.error('[ClientWorkflow] Preview cache expired for:', clientPin);
+                    fastify.log.warn({ event: 'previewCacheExpired', clientPin });
                     return reply.redirect('/clientsDashboard?clientPin=' + clientPin + '&error=Preview expired. Please sign again.');
                 }
 
@@ -133,7 +133,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
                 // Standard flow - get data from form submission
                 signatureData = formData.clientSignatureData;
                 if (!signatureData || signatureData.trim() === '') {
-                    console.error('[ClientWorkflow] No signature data provided');
+                    fastify.log.warn({ event: 'noSignatureData' });
                     return reply.code(400).send({
                         success: false,
                         error: 'Signature is required'
@@ -163,7 +163,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
                 // Validate all required consents are checked
                 const allConsentsGiven = Object.values(consentData).every(v => v === true);
                 if (!allConsentsGiven) {
-                    console.error('[ClientWorkflow] Not all consents checked');
+                    fastify.log.warn({ event: 'incompleteConsents' });
                     return reply.code(400).send({
                         success: false,
                         error: 'All consent checkboxes must be checked'
@@ -171,7 +171,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
                 }
             }
 
-            console.log('[ClientWorkflow] All consents validated, calling SSOT API');
+            fastify.log.info({ event: 'consentsValidated' });
 
             // Call SSOT API to save consent
             const apiResponse = await ssotFetch('/api/clients/consent/sign', {
@@ -191,11 +191,11 @@ export default async function clientWorkflowRoutes(fastify, options) {
             const apiData = await apiResponse.json();
 
             if (apiData.success) {
-                console.log('[ClientWorkflow] Consent signed successfully for:', clientPin);
+                fastify.log.info({ event: 'consentSigned', clientPin });
                 // Redirect back to dashboard with success message
                 return reply.redirect('/clientsDashboard?clientPin=' + clientPin + '&success=Consent form signed successfully');
             } else {
-                console.error('[ClientWorkflow] SSOT API error:', apiData.error);
+                fastify.log.error({ event: 'ssotApiError', error: apiData.error });
                 return reply.code(apiResponse.status).send({
                     success: false,
                     error: apiData.error || 'Failed to save consent'
@@ -203,7 +203,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             }
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error signing consent:', error.message);
+            fastify.log.error({ event: 'consentSignError', error: error.message });
             return reply.code(500).send({
                 success: false,
                 error: 'Failed to sign consent form: ' + error.message
@@ -227,7 +227,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             const { clientPin, clientName } = request.user;
             const formData = request.body;
 
-            console.log('[ClientWorkflow] Preview request for client PIN:', clientPin);
+            fastify.log.info({ event: 'previewRequest', clientPin });
 
             const signatureData = formData.clientSignatureData;
             if (!signatureData || signatureData.trim() === '') {
@@ -268,7 +268,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             const apiData = await apiResponse.json();
 
             if (apiData.success) {
-                console.log('[ClientWorkflow] Preview generated and cached for:', clientPin);
+                fastify.log.info({ event: 'previewCached', clientPin });
 
                 // Store in preview cache for confirm submission and GET endpoint
                 previewCache.set(clientPin, {
@@ -286,7 +286,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             }
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error generating preview:', error.message);
+            fastify.log.error({ event: 'previewGenerateError', error: error.message });
             return reply.redirect(`/clientsDashboard?error=${encodeURIComponent(error.message)}`);
         }
     });
@@ -308,14 +308,14 @@ export default async function clientWorkflowRoutes(fastify, options) {
 
             // Check preview cache
             if (!previewCache.has(pin)) {
-                console.log('[ClientWorkflow] No cached preview for:', pin);
+                fastify.log.warn({ event: 'noCachedPreview', pin });
                 return reply.code(404).send({ error: 'No preview available' });
             }
 
             const cachedData = previewCache.get(pin);
             const pdfBuffer = Buffer.from(cachedData.pdfBase64, 'base64');
 
-            console.log('[ClientWorkflow] Serving cached PDF preview for:', pin);
+            fastify.log.info({ event: 'servingCachedPreview', pin });
 
             return reply
                 .type('application/pdf')
@@ -323,7 +323,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
                 .send(pdfBuffer);
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error serving preview PDF:', error.message);
+            fastify.log.error({ event: 'previewServingError', error: error.message });
             return reply.code(500).send({ error: 'Failed to serve preview' });
         }
     });
@@ -360,7 +360,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             return reply.code(apiResponse.status).send(apiData);
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error fetching notifications:', error.message);
+            fastify.log.error({ event: 'notificationsFetchError', error: error.message });
             return reply.code(500).send({
                 success: false,
                 error: 'Failed to fetch notifications'
@@ -389,7 +389,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             return reply.code(apiResponse.status).send(apiData);
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error marking notification as read:', error.message);
+            fastify.log.error({ event: 'notificationMarkReadError', error: error.message });
             return reply.code(500).send({
                 success: false,
                 error: 'Failed to mark notification as read'
@@ -417,7 +417,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             return reply.code(apiResponse.status).send(apiData);
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error fetching notification count:', error.message);
+            fastify.log.error({ event: 'notificationCountError', error: error.message });
             return reply.code(500).send({
                 success: false,
                 error: 'Failed to fetch notification count'
@@ -436,13 +436,13 @@ export default async function clientWorkflowRoutes(fastify, options) {
         const { clientPin } = request.user;
 
         try {
-            console.log('[ClientWorkflow] View signed consent requested for:', clientPin);
+            fastify.log.info({ event: 'viewSignedConsent', clientPin });
 
             // Get JWT token from cookie to pass to SSOT API
             const clientToken = request.cookies.qolaeClientToken;
 
             if (!clientToken) {
-                console.error('[ClientWorkflow] No client token found in cookies');
+                fastify.log.warn({ event: 'noClientToken' });
                 return reply.code(401).send({
                     success: false,
                     error: 'Authentication required'
@@ -450,7 +450,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             }
 
             // Call SSOT API endpoint for signed consent PDF
-            console.log('[ClientWorkflow] Calling SSOT API: /api/clients/consent/view');
+            fastify.log.info({ event: 'ssotConsentView' });
 
             const pdfResponse = await ssotFetch('/api/clients/consent/view', {
                 method: 'GET',
@@ -462,7 +462,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
 
             if (!pdfResponse.ok) {
                 const errorData = await pdfResponse.json().catch(() => ({}));
-                console.error('[ClientWorkflow] SSOT API error:', pdfResponse.status, errorData);
+                fastify.log.error({ event: 'ssotConsentViewError', status: pdfResponse.status });
 
                 if (pdfResponse.status === 400) {
                     return reply.code(400).send({
@@ -485,11 +485,11 @@ export default async function clientWorkflowRoutes(fastify, options) {
             reply.header('Content-Disposition', `inline; filename="SignedConsent_${clientPin}.pdf"`);
             reply.header('Content-Length', pdfBuffer.byteLength);
 
-            console.log('[ClientWorkflow] Serving signed consent PDF for:', clientPin, `(${pdfBuffer.byteLength} bytes)`);
+            fastify.log.info({ event: 'servingSignedConsent', clientPin, bytes: pdfBuffer.byteLength });
             return reply.send(Buffer.from(pdfBuffer));
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error viewing consent:', error.message);
+            fastify.log.error({ event: 'consentViewError', error: error.message });
             return reply.code(500).send({
                 success: false,
                 error: 'Failed to retrieve consent form'
@@ -530,7 +530,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             });
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error fetching documents:', error.message);
+            fastify.log.error({ event: 'documentsFetchError', error: error.message });
             return reply.code(500).send({
                 success: false,
                 error: 'Failed to fetch documents'
@@ -571,7 +571,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             });
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error fetching report:', error.message);
+            fastify.log.error({ event: 'reportFetchError', error: error.message });
             return reply.code(500).send({
                 success: false,
                 error: 'Failed to fetch report'
@@ -599,7 +599,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
             return reply.code(apiResponse.status).send(apiData);
 
         } catch (error) {
-            console.error('[ClientWorkflow] Error fetching client profile:', error.message);
+            fastify.log.error({ event: 'clientProfileError', error: error.message });
             return reply.code(500).send({
                 success: false,
                 error: 'Failed to fetch client profile'
@@ -631,7 +631,7 @@ export default async function clientWorkflowRoutes(fastify, options) {
         preHandler: authenticateClient
     }, async (request, reply) => {
         const { clientPin } = request.user;
-        console.log('[ClientWorkflow] HTMX modal requested for:', clientPin);
+        fastify.log.info({ event: 'htmxModalRequest', clientPin });
 
         return reply.view('partials/viewSignedConsentModal.ejs', {
             clientPin: clientPin
@@ -645,12 +645,12 @@ export default async function clientWorkflowRoutes(fastify, options) {
     fastify.get('/consent/closeModal', {
         preHandler: authenticateClient
     }, async (request, reply) => {
-        console.log('[ClientWorkflow] HTMX modal close requested');
+        fastify.log.info({ event: 'htmxModalClose' });
         reply.type('text/html');
         return reply.send('');
     });
 
-    console.log('[ClientWorkflow] Routes registered (SSOT compliant)');
+    fastify.log.info({ event: 'clientWorkflowRoutesRegistered' });
 }
 
 // Export previewCache for access from cd_server.js dashboard route
