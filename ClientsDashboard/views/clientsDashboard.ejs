@@ -1051,15 +1051,12 @@
                         </svg>
                         GDPR Compliant
                     </div>
-                    <form method="POST" action="/clientsAuth/logout" style="display: inline;">
-                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                        <button type="submit" class="logout-btn">
-                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M16,17V14H9V10H16V7L21,12L16,17M14,2A2,2 0 0,1 16,4V6H14V4H5V20H14V18H16V20A2,2 0 0,1 14,22H5A2,2 0 0,1 3,20V4A2,2 0 0,1 5,2H14Z"/>
-                            </svg>
-                            Logout
-                        </button>
-                    </form>
+                    <button class="logout-btn" onclick="window.location.href='/logout'">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M16,17V14H9V10H16V7L21,12L16,17M14,2A2,2 0 0,1 16,4V6H14V4H5V20H14V18H16V20A2,2 0 0,1 14,22H5A2,2 0 0,1 3,20V4A2,2 0 0,1 5,2H14Z"/>
+                        </svg>
+                        Logout
+                    </button>
                 </div>
             </div>
             <div class="welcome-section">
@@ -1305,10 +1302,7 @@
             <div class="footer-nav">
                 <a href="#" onclick="showToast('Privacy Policy - Coming soon', 'info'); return false;">Privacy Policy</a>
                 <a href="#" onclick="showToast('Terms of Service - Coming soon', 'info'); return false;">Terms of Service</a>
-                <form method="POST" action="/clientsAuth/logout" style="display: inline;">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <button type="submit" style="background: none; border: none; color: #4facfe; font-weight: 500; font-size: 0.9rem; cursor: pointer; padding: 0;">Logout</button>
-                </form>
+                <button onclick="window.location.href='/logout'" style="background: none; border: none; color: #4facfe; font-weight: 500; font-size: 0.9rem; cursor: pointer; padding: 0;">Logout</button>
             </div>
         </div>
     </div>

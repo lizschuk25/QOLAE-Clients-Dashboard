@@ -611,6 +611,19 @@ export default async function clientWorkflowRoutes(fastify, options) {
     // LOCATION BLOCK 10: LOGOUT
     // ==============================================
     fastify.get('/logout', async (request, reply) => {
+        const pin = request.user?.clientPin;
+        if (pin) {
+          try {
+            await ssotFetch('/auth/invalidateSession', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userType: 'clients', pin })
+            });
+          } catch (invalidateError) {
+            console.error('Session invalidation failed:', invalidateError.message);
+          }
+        }
+
         reply.clearCookie('qolaeClientToken', {
             path: '/',
             httpOnly: true,

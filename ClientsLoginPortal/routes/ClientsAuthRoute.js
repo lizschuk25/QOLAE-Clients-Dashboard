@@ -119,8 +119,8 @@ export default async function clientsAuthRoutes(fastify, opts) {
         // ============================================
 
         try {
-          // Read existing JWT token from cookie (set by pin-access)
-          const jwtToken = request.cookies?.qolaeClientToken;
+          // Use fresh token from requestToken if available, fall back to cookie
+          const jwtToken = apiResponse?.accessToken || request.cookies?.qolaeClientToken;
 
           if (!jwtToken) {
             fastify.log.warn({
@@ -544,7 +544,8 @@ export default async function clientsAuthRoutes(fastify, opts) {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 60 * 60 * 24
+            maxAge: 60 * 60 * 24,
+            domain: '.qolae.com'
           });
 
           const opType = isReset ? 'reset' : (isNewUser ? 'setup' : 'verify');
@@ -595,37 +596,36 @@ export default async function clientsAuthRoutes(fastify, opts) {
 
   fastify.post('/clientsAuth/logout', async (request, reply) => {
     const jwtToken = request.cookies?.qolaeClientToken;
-    const clientIP = request.ip;
 
-    // 📝 GDPR Audit Log
     fastify.log.info({
       event: 'clientLogoutRequest',
       hasToken: !!jwtToken,
-      ip: clientIP,
       timestamp: new Date().toISOString(),
       gdprCategory: 'authentication'
     });
 
-    // ✅ JWT LOGOUT: Clear cookie (JWT cannot be deleted server-side as it's stateless)
-    // NOTE: For enhanced security, implement JWT blacklist in future
     if (jwtToken) {
       try {
-        // Log successful JWT logout
-        fastify.log.info({
-          event: 'jwtCleared',
-          gdprCategory: 'authentication'
-        });
-
+        const decoded = jwt.verify(jwtToken, process.env.CLIENTS_LOGIN_JWT_SECRET, { algorithms: ['HS256'] });
+        if (decoded.clientPin) {
+          await ssotFetch('/auth/invalidateSession', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userType: 'clients', pin: decoded.clientPin })
+          });
+        }
       } catch (err) {
-        fastify.log.error({
-          event: 'logoutError',
-          error: err.message
-        });
+        console.error('Session invalidation failed:', err.message);
       }
     }
 
-    // ✅ Clear the JWT cookie
-    reply.header('Set-Cookie', 'qolaeClientToken=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');
+    reply.clearCookie('qolaeClientToken', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      path: '/',
+      domain: '.qolae.com'
+    });
 
     return reply.send({
       success: true,

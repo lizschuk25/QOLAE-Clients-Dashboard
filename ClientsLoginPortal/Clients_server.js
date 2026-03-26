@@ -302,7 +302,7 @@ fastify.get('/clientsLogin', async (request, reply) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: ssotData.expiresIn * 1000, // ✅ Use expiry from SSOT (5 hours in ms)
+      maxAge: ssotData.expiresIn,
       path: '/',
       domain: process.env.COOKIE_DOMAIN || '.qolae.com'
     });
@@ -575,11 +575,32 @@ fastify.get('/secureLogin', async (req, reply) => {
 
 // 1.4b: Logout
 fastify.post('/logout', async (request, reply) => {
-  return reply.send({
-    success: true,
-    message: 'Logged out successfully',
-    redirect: '/clientsLogin'
+  const jwtToken = request.cookies?.qolaeClientToken;
+
+  if (jwtToken) {
+    try {
+      const decoded = jwt.verify(jwtToken, process.env.CLIENTS_LOGIN_JWT_SECRET, { algorithms: ['HS256'] });
+      if (decoded.clientPin) {
+        await ssotFetch('/auth/invalidateSession', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userType: 'clients', pin: decoded.clientPin })
+        });
+      }
+    } catch (err) {
+      console.error('Session invalidation failed:', err.message);
+    }
+  }
+
+  reply.clearCookie('qolaeClientToken', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict',
+    path: '/',
+    domain: '.qolae.com'
   });
+
+  return reply.redirect('/ClientsLogin');
 });
 
 // ==============================================

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 // ==============================================
 // QOLAE CLIENTS DASHBOARD SERVER
 // ==============================================
@@ -25,10 +26,7 @@ import fastifyJwt from '@fastify/jwt';
 import fastifyCookie from '@fastify/cookie';
 import fastifyMultipart from '@fastify/multipart';
 import ssotFetch from './utils/ssotFetch.js';
-import dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config();
+import sessionMiddleware from './middleware/sessionMiddleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -100,51 +98,13 @@ await server.register(fastifyView, {
     },
 });
 
-// ==============================================
-// PT-9: GLOBAL SESSION VALIDATION — preHandler
-// Protects ALL routes except /public/ static assets
-// ==============================================
-server.addHook('preHandler', async (request, reply) => {
-    const urlPath = request.url.split('?')[0];
-
-    if (urlPath.startsWith('/public/')) {
-        return;
-    }
-
-    try {
-        await request.jwtVerify();
-        if (request.user.role !== 'client') {
-            return reply.redirect('https://clients.qolae.com/clientsLogin');
-        }
-    } catch (err) {
-        return reply.redirect('https://clients.qolae.com/clientsLogin');
-    }
-});
+// SSOT-compliant session validation (replaces inline jwtVerify preHandler + authenticateClient decorator)
+server.addHook('preHandler', sessionMiddleware);
 
 // ==============================================
 // LOCATION BLOCK D: CONSTANTS & CONFIGURATION
 // ==============================================
 // SSOT_BASE_URL now centralised in utils/ssotFetch.js
-
-// ==============================================
-// LOCATION BLOCK E: AUTHENTICATION DECORATOR
-// ==============================================
-/**
- * Decorator to verify client JWT and attach user data
- */
-server.decorate('authenticateClient', async function(request, reply) {
-    try {
-        await request.jwtVerify();
-        
-        if (request.user.role !== 'client') {
-            throw new Error('Invalid role');
-        }
-    } catch (error) {
-        // Redirect to LoginPortal
-        const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clientsLogin';
-        return reply.redirect(`${loginUrl}?error=Session expired. Please login again.`);
-    }
-});
 
 // ==============================================
 // LOCATION BLOCK F: BOOTSTRAP HELPER FUNCTION
@@ -725,24 +685,32 @@ server.get('/health', async (request, reply) => {
  */
 server.post('/clientsAuth/logout', async (request, reply) => {
     try {
-        server.log.info({ event: 'logoutRequest' });
+        const pin = request.user?.clientPin;
+        if (pin) {
+          try {
+            await ssotFetch('/auth/invalidateSession', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userType: 'clients', pin })
+            });
+          } catch (invalidateError) {
+            console.error('Session invalidation failed:', invalidateError.message);
+          }
+        }
 
-        // Clear the JWT cookie
         reply.clearCookie('qolaeClientToken', {
             path: '/',
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict'
+            secure: true,
+            sameSite: 'strict',
+            domain: '.qolae.com'
         });
 
-        server.log.info({ event: 'logoutComplete' });
-
-        // Redirect to ClientsLoginPortal
         const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clientsLogin';
         return reply.redirect(loginUrl);
 
     } catch (error) {
-        server.log.error({ event: 'logoutError', error: error.message });
+        console.error('Logout error:', error.message);
         const loginUrl = process.env.LOGIN_URL || 'https://clients.qolae.com/clientsLogin';
         return reply.redirect(loginUrl);
     }
