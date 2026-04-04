@@ -328,7 +328,8 @@ server.get('/clientsDashboard', async (req, reply) => {
             redoSignature: redoSignatureData !== null,
             cachedConsentData: redoSignatureData?.consentData || null,
             // Server-side modal control (replaces JavaScript open/close)
-            showModal: showModal || null
+            showModal: showModal || null,
+            degradedMode: req.degradedMode || false
         });
 
     } catch (error) {

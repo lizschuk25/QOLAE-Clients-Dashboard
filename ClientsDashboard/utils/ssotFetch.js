@@ -27,10 +27,21 @@ async function ssotFetch(path, options = {}) {
     'x-internal-secret': INTERNAL_API_SECRET
   };
 
-  return fetch(url, {
-    ...options,
-    headers
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers
+    });
+    clearTimeout(timeout);
+    return response;
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
+  }
 }
 
 export default ssotFetch;
